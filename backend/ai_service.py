@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import os
 import json
 from openai import OpenAI
