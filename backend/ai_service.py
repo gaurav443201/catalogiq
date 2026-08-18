@@ -6,8 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 # ─── Mock response (USE_MOCK=true protects $5 budget during dev) ──────────────
 MOCK_RESPONSE = {
     "product_name":    {"value": "XYZ Industrial 2\" Ball Valve", "source": "input_text",  "confidence": 95},
@@ -41,7 +39,7 @@ Fields to extract:
 product_name, category, brand, material, size, connection_type,
 pressure_rating, certifications, application, price_range
 
-Return ONLY a valid JSON object with those 10 keys. No explanation, no markdown, no extra text."""
+Return ONLY a valid JSON object with exactly those 10 keys. No explanation, no markdown, no extra text."""
 
 
 def extract_product_data(raw_text: str, category: str = "Ball Valve") -> dict:
@@ -52,7 +50,9 @@ def extract_product_data(raw_text: str, category: str = "Ball Valve") -> dict:
     if os.getenv("USE_MOCK", "true").lower() == "true":
         return MOCK_RESPONSE
 
-    # OpenAI v1+ client (works with openai>=1.0.0 AND openai>=3.0.0)
+    api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key)
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         response_format={"type": "json_object"},
@@ -66,4 +66,5 @@ def extract_product_data(raw_text: str, category: str = "Ball Valve") -> dict:
         temperature=0.2,
     )
 
-    return json.loads(response.choices[0].message.content)
+    content = response.choices[0].message.content
+    return json.loads(content)
