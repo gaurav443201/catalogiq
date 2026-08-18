@@ -5,20 +5,19 @@ const SOURCE_CONFIG = {
     label: 'Confirmed',
     className: 'confirmed',
     icon: '●',
-    tooltip: null,
   },
   ai_inferred: {
     label: 'AI Inferred',
     className: 'inferred',
     icon: '◆',
     tooltip: (field, confidence) =>
-      `This field was not directly stated in the input. AI inferred it based on category norms and domain knowledge. Confidence: ${confidence}%`,
+      `Not directly stated — AI inferred from category norms & domain knowledge. Confidence: ${confidence}%`,
   },
   unknown: {
     label: 'Unknown',
     className: 'unknown',
     icon: '○',
-    tooltip: () => 'Could not be determined from the input. Manual review recommended.',
+    tooltip: () => 'Could not be determined. Manual review recommended.',
   },
 }
 
@@ -35,21 +34,33 @@ const FIELD_LABELS = {
   price_range:     'Price Range',
 }
 
-export default function FieldRow({ fieldKey, data }) {
+export default function FieldRow({ fieldKey, data, onCopy }) {
   const [tooltipVisible, setTooltipVisible] = useState(false)
+  const [copied, setCopied] = useState(false)
   const config = SOURCE_CONFIG[data.source] || SOURCE_CONFIG.unknown
   const isEmpty = !data.value
+
+  const handleCopyValue = () => {
+    if (!data.value) return
+    navigator.clipboard.writeText(data.value)
+    setCopied(true)
+    onCopy?.(`Copied "${data.value}"`)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   return (
     <div className="field-row" id={`field-row-${fieldKey}`}>
       <span className="field-label">{FIELD_LABELS[fieldKey] || fieldKey}</span>
 
-      <span className={`field-value ${isEmpty ? 'empty' : ''}`}>
-        {isEmpty ? '—' : data.value}
+      <span
+        className={`field-value ${isEmpty ? 'empty' : 'copyable'}`}
+        onClick={handleCopyValue}
+        title={!isEmpty ? 'Click to copy' : ''}
+      >
+        {copied ? '✓ Copied!' : isEmpty ? '—' : data.value}
       </span>
 
       <div className="field-right">
-        {/* Confidence bar — only for non-unknown */}
         {data.source !== 'unknown' && (
           <div className="confidence-wrap">
             <div className="confidence-bar">
@@ -62,41 +73,39 @@ export default function FieldRow({ fieldKey, data }) {
           </div>
         )}
 
-        {/* Badge */}
         <span className={`badge ${config.className}`}>
           {config.icon} {config.label}
         </span>
 
-        {/* Tooltip trigger for ai_inferred */}
-        {data.source === 'ai_inferred' && (
+        {(data.source === 'ai_inferred' || data.source === 'unknown') && (
           <div
             className="tooltip-wrap"
             onMouseEnter={() => setTooltipVisible(true)}
             onMouseLeave={() => setTooltipVisible(false)}
           >
-            <div className="tooltip-trigger">?</div>
+            <div
+              className="tooltip-trigger"
+              style={
+                data.source === 'unknown'
+                  ? {
+                      background: 'rgba(255,71,87,0.2)',
+                      border: '1px solid rgba(255,71,87,0.4)',
+                      color: 'var(--unknown)',
+                    }
+                  : {}
+              }
+            >
+              {data.source === 'unknown' ? '!' : '?'}
+            </div>
             {tooltipVisible && (
-              <div className="tooltip-box">
-                {config.tooltip(fieldKey, data.confidence)}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Tooltip for unknown */}
-        {data.source === 'unknown' && (
-          <div
-            className="tooltip-wrap"
-            onMouseEnter={() => setTooltipVisible(true)}
-            onMouseLeave={() => setTooltipVisible(false)}
-          >
-            <div className="tooltip-trigger" style={{
-              background: 'rgba(255,71,87,0.2)',
-              border: '1px solid rgba(255,71,87,0.4)',
-              color: 'var(--unknown)',
-            }}>!</div>
-            {tooltipVisible && (
-              <div className="tooltip-box" style={{ borderColor: 'rgba(255,71,87,0.3)' }}>
+              <div
+                className="tooltip-box"
+                style={
+                  data.source === 'unknown'
+                    ? { borderColor: 'rgba(255,71,87,0.3)' }
+                    : {}
+                }
+              >
                 {config.tooltip(fieldKey, data.confidence)}
               </div>
             )}

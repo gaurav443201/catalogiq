@@ -1,6 +1,7 @@
 # pyrefly: ignore [missing-import]
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from models import GenerateRequest
 from ai_service import extract_product_data
 from database import save_product, get_all_products, get_product_by_id
@@ -24,6 +25,11 @@ app.add_middleware(
 
 
 # ─── Routes ───────────────────────────────────────────────────────────────────
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
+
 
 @app.get("/health")
 def health():
