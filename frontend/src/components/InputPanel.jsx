@@ -1,23 +1,39 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+
+const CATEGORIES = [
+  { value: 'Ball Valve',        icon: '🔧' },
+  { value: 'Industrial Motor',  icon: '⚙️' },
+  { value: 'Pump',              icon: '💧' },
+  { value: 'Pressure Gauge',    icon: '🎯' },
+  { value: 'Heat Exchanger',    icon: '🌡️' },
+  { value: 'Bearing',           icon: '🔩' },
+  { value: 'Sensor',            icon: '📡' },
+  { value: 'Compressor',        icon: '🏭' },
+]
 
 const SAMPLES = [
   {
     label: 'Sample 1',
     text: 'XYZ Industrial 2" Ball Valve. Stainless steel body, suitable for high-pressure industrial applications. NPT threaded connections. Manufactured for use in oil & gas and chemical processing environments.',
+    category: 'Ball Valve',
   },
   {
     label: 'Sample 2',
-    text: 'Brass ball valve, 1 inch, threaded ends. General purpose water and gas shutoff. Rated for residential and light commercial use.',
+    text: 'ABB 15kW 3-phase AC induction motor, IE3 efficiency class. Frame size 160M, 1450 RPM, 400V/50Hz. IP55 enclosure, class F insulation. Suitable for pumps, fans, compressors.',
+    category: 'Industrial Motor',
   },
   {
     label: 'Sample 3',
-    text: 'Heavy-duty carbon steel ball valve, flanged connection, 4 inch diameter. Used in high-temperature steam applications. ANSI 300 rated.',
+    text: 'Grundfos CM5-6 centrifugal pump, stainless steel impeller, 1.1 kW, max flow 5 m³/h, max head 62m. Flanged connection DN40. For clean water and non-aggressive liquids.',
+    category: 'Pump',
   },
 ]
 
 export default function InputPanel({ onGenerate, loading }) {
   const [text, setText] = useState('')
   const [category, setCategory] = useState('Ball Valve')
+  const [open, setOpen] = useState(false)
+  const dropdownRef = useRef(null)
 
   const handleSubmit = () => {
     if (!text.trim()) return
@@ -28,6 +44,19 @@ export default function InputPanel({ onGenerate, loading }) {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSubmit()
   }
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const selected = CATEGORIES.find((c) => c.value === category) || CATEGORIES[0]
+
   return (
     <div className="card input-panel">
       <div className="input-panel-header">
@@ -35,22 +64,43 @@ export default function InputPanel({ onGenerate, loading }) {
           <span className="panel-title-icon">📋</span>
           Product Input
         </span>
-        <select
-          id="category-select"
-          className="category-select"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        >
-          <option value="Ball Valve">🔧 Ball Valve</option>
-          <option value="Industrial Motor">⚙️ Industrial Motor</option>
-        </select>
+
+        {/* Custom dropdown */}
+        <div className="custom-dropdown" ref={dropdownRef}>
+          <button
+            id="category-select"
+            className={`dropdown-trigger${open ? ' open' : ''}`}
+            onClick={() => setOpen((o) => !o)}
+            type="button"
+          >
+            <span>{selected.icon} {selected.value}</span>
+            <svg className="dropdown-caret" viewBox="0 0 20 20" fill="none">
+              <path stroke="#9494b8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M6 8l4 4 4-4"/>
+            </svg>
+          </button>
+
+          {open && (
+            <div className="dropdown-menu">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  className={`dropdown-item${cat.value === category ? ' active' : ''}`}
+                  onClick={() => { setCategory(cat.value); setOpen(false) }}
+                  type="button"
+                >
+                  {cat.icon} {cat.value}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="textarea-wrapper">
         <textarea
           id="product-textarea"
           className="product-textarea"
-          placeholder="Paste raw product text here — specs, descriptions, catalog snippets…&#10;&#10;Press Ctrl+Enter to generate."
+          placeholder={"Paste raw product text here — specs, descriptions, catalog snippets…\n\nPress Ctrl+Enter to generate."}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -66,7 +116,7 @@ export default function InputPanel({ onGenerate, loading }) {
               key={s.label}
               id={`sample-btn-${s.label.toLowerCase().replace(' ', '-')}`}
               className="sample-btn"
-              onClick={() => setText(s.text)}
+              onClick={() => { setText(s.text); setCategory(s.category) }}
             >
               {s.label}
             </button>

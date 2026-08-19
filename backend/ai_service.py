@@ -20,9 +20,10 @@ MOCK_RESPONSE = {
     "price_range":     {"value": "$150 - $400",                   "source": "ai_inferred", "confidence": 45},
 }
 
-# ─── System prompt ─────────────────────────────────────────────────────────────
-SYSTEM_PROMPT = """You are an industrial product data extraction AI.
-Given raw product text, extract and/or infer the following fields for an industrial ball valve.
+# ─── System prompt (dynamic per category) ─────────────────────────────────────
+def build_system_prompt(category: str) -> str:
+    return f"""You are an industrial product data extraction AI.
+Given raw product text, extract and/or infer the following fields for a {category} product.
 
 For EACH field return exactly:
 - "value": the extracted or inferred value (use empty string "" if unknown)
@@ -57,10 +58,10 @@ def extract_product_data(raw_text: str, category: str = "Ball Valve") -> dict:
         model="gpt-4o-mini",
         response_format={"type": "json_object"},
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": build_system_prompt(category)},
             {
                 "role": "user",
-                "content": f"Category hint: {category}\n\nRaw product text:\n{raw_text}",
+                "content": f"Raw product text:\n{raw_text}",
             },
         ],
         temperature=0.2,

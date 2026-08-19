@@ -146,7 +146,15 @@ body::before {
 
 .panel-title-icon { font-size: 18px; }
 
-.category-select {
+/* ── Custom Category Dropdown ─────────────────────────────────────────── */
+.custom-dropdown {
+  position: relative;
+}
+
+.dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   background: rgba(255,255,255,0.06);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -158,16 +166,72 @@ body::before {
   cursor: pointer;
   outline: none;
   transition: var(--transition);
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%239494b8' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 16px;
-  padding-right: 30px;
+  white-space: nowrap;
 }
 
-.category-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+.dropdown-trigger:hover,
+.dropdown-trigger.open {
+  border-color: var(--accent);
+  background: rgba(99,102,241,0.1);
+}
+
+.dropdown-caret {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-trigger.open .dropdown-caret {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  background: #1e1e2e;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: 100;
+  overflow: hidden;
+  animation: dropIn 0.15s ease;
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: rgba(99,102,241,0.15);
+  color: #fff;
+}
+
+.dropdown-item.active {
+  background: rgba(99,102,241,0.25);
+  color: var(--accent-light, #a5b4fc);
+}
+
 
 .textarea-wrapper { position: relative; }
 
