@@ -1,6 +1,7 @@
 # pyrefly: ignore [missing-import]
 import os
 import json
+import base64
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -69,3 +70,38 @@ def extract_product_data(raw_text: str, category: str = "Ball Valve") -> dict:
 
     content = response.choices[0].message.content
     return json.loads(content)
+
+
+def extract_text_from_image(image_bytes: bytes, mime_type: str = "image/jpeg", category: str = "industrial product") -> str:
+    """
+    Use GPT-4o Vision to extract raw product text from an uploaded image.
+    Returns a plain-text string suitable for the /generate endpoint.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key)
+
+    b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+    data_url = f"data:{mime_type};base64,{b64}"
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"This is an image of an industrial {category} product or its catalog/datasheet. "
+                            "Extract ALL visible product information — name, brand, model, specifications, "
+                            "material, size, ratings, certifications, and any other technical details. "
+                            "Return ONLY the raw extracted text as a plain paragraph. No JSON, no bullets, no explanation."
+                        ),
+                    },
+                    {"type": "image_url", "image_url": {"url": data_url, "detail": "high"}},
+                ],
+            }
+        ],
+        max_tokens=600,
+    )
+    return response.choices[0].message.content.strip()

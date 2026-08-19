@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import FileDropZone from './FileDropZone'
 
 const CATEGORIES = [
   { value: 'Ball Valve',        icon: '🔧' },
@@ -29,10 +30,11 @@ const SAMPLES = [
   },
 ]
 
-export default function InputPanel({ onGenerate, loading }) {
+export default function InputPanel({ onGenerate, loading, apiUrl }) {
   const [text, setText] = useState('')
   const [category, setCategory] = useState('Ball Valve')
   const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState('text') // 'text' | 'file'
   const dropdownRef = useRef(null)
 
   const handleSubmit = () => {
@@ -57,15 +59,35 @@ export default function InputPanel({ onGenerate, loading }) {
 
   const selected = CATEGORIES.find((c) => c.value === category) || CATEGORIES[0]
 
+  const handleFileExtracted = (extractedText) => {
+    setText(extractedText)
+    setTab('text') // switch to text tab so user can review + hit Generate
+  }
+
   return (
     <div className="card input-panel">
+      {/* Header row */}
       <div className="input-panel-header">
-        <span className="panel-title">
-          <span className="panel-title-icon">📋</span>
-          Product Input
-        </span>
+        <div className="input-tabs">
+          <button
+            id="tab-text"
+            className={`input-tab${tab === 'text' ? ' active' : ''}`}
+            onClick={() => setTab('text')}
+            type="button"
+          >
+            📝 Text
+          </button>
+          <button
+            id="tab-file"
+            className={`input-tab${tab === 'file' ? ' active' : ''}`}
+            onClick={() => setTab('file')}
+            type="button"
+          >
+            📁 File
+          </button>
+        </div>
 
-        {/* Custom dropdown */}
+        {/* Category dropdown */}
         <div className="custom-dropdown" ref={dropdownRef}>
           <button
             id="category-select"
@@ -96,52 +118,63 @@ export default function InputPanel({ onGenerate, loading }) {
         </div>
       </div>
 
-      <div className="textarea-wrapper">
-        <textarea
-          id="product-textarea"
-          className="product-textarea"
-          placeholder={"Paste raw product text here — specs, descriptions, catalog snippets…\n\nPress Ctrl+Enter to generate."}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          maxLength={2000}
-        />
-        <span className="char-count">{text.length}/2000</span>
-      </div>
+      {/* Tab content */}
+      {tab === 'text' ? (
+        <>
+          <div className="textarea-wrapper">
+            <textarea
+              id="product-textarea"
+              className="product-textarea"
+              placeholder={"Paste raw product text here — specs, descriptions, catalog snippets…\n\nPress Ctrl+Enter to generate."}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              maxLength={2000}
+            />
+            <span className="char-count">{text.length}/2000</span>
+          </div>
 
-      <div className="input-actions">
-        <div className="sample-btns">
-          {SAMPLES.map((s) => (
+          <div className="input-actions">
+            <div className="sample-btns">
+              {SAMPLES.map((s) => (
+                <button
+                  key={s.label}
+                  id={`sample-btn-${s.label.toLowerCase().replace(' ', '-')}`}
+                  className="sample-btn"
+                  onClick={() => { setText(s.text); setCategory(s.category) }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
             <button
-              key={s.label}
-              id={`sample-btn-${s.label.toLowerCase().replace(' ', '-')}`}
-              className="sample-btn"
-              onClick={() => { setText(s.text); setCategory(s.category) }}
+              id="generate-btn"
+              className="generate-btn"
+              onClick={handleSubmit}
+              disabled={loading || !text.trim()}
             >
-              {s.label}
+              {loading ? (
+                <>
+                  <div className="spinner" />
+                  Analyzing…
+                </>
+              ) : (
+                <>
+                  <span>✦</span>
+                  Generate
+                </>
+              )}
             </button>
-          ))}
-        </div>
-
-        <button
-          id="generate-btn"
-          className="generate-btn"
-          onClick={handleSubmit}
-          disabled={loading || !text.trim()}
-        >
-          {loading ? (
-            <>
-              <div className="spinner" />
-              Analyzing…
-            </>
-          ) : (
-            <>
-              <span>✦</span>
-              Generate
-            </>
-          )}
-        </button>
-      </div>
+          </div>
+        </>
+      ) : (
+        <FileDropZone
+          onExtracted={handleFileExtracted}
+          category={category}
+          apiUrl={apiUrl}
+        />
+      )}
     </div>
   )
 }

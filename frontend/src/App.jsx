@@ -78,6 +78,13 @@ export default function App() {
     setError(null)
   }
 
+  const handleClearHistory = async () => {
+    // Optimistically clear UI
+    setHistory([])
+    setTotalAnalyzed(0)
+    addToast('History cleared', 'info')
+  }
+
   return (
     <div className="app">
       {/* Toast stack */}
@@ -114,7 +121,7 @@ export default function App() {
       </header>
 
       {/* Input */}
-      <InputPanel onGenerate={handleGenerate} loading={loading} />
+      <InputPanel onGenerate={handleGenerate} loading={loading} apiUrl={API_URL} />
 
       {/* Error */}
       {error && (
@@ -141,7 +148,7 @@ export default function App() {
 
       {/* History */}
       {history.length > 0 && (
-        <HistoryPanel products={history} onSelect={handleHistorySelect} />
+        <HistoryPanel products={history} onSelect={handleHistorySelect} onClearAll={handleClearHistory} />
       )}
     </div>
   )

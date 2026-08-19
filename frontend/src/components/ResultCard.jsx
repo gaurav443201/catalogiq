@@ -7,6 +7,19 @@ const FIELD_KEYS = [
   'certifications', 'application', 'price_range',
 ]
 
+const FIELD_LABELS = {
+  product_name:    'Product Name',
+  category:        'Category',
+  brand:           'Brand',
+  material:        'Material',
+  size:            'Size',
+  connection_type: 'Connection Type',
+  pressure_rating: 'Pressure Rating',
+  certifications:  'Certifications',
+  application:     'Application',
+  price_range:     'Price Range',
+}
+
 function countBySource(result) {
   const counts = { confirmed: 0, inferred: 0, unknown: 0 }
   FIELD_KEYS.forEach((key) => {
@@ -25,7 +38,7 @@ export default function ResultCard({ result, onCopy }) {
   if (!result) return null
   const counts = countBySource(result)
 
-  const handleExport = () => {
+  const handleExportJson = () => {
     const blob = new Blob([JSON.stringify(result, null, 2)], {
       type: 'application/json',
     })
@@ -38,9 +51,31 @@ export default function ResultCard({ result, onCopy }) {
     onCopy?.('Downloaded JSON file!')
   }
 
+  const handleExportCsv = () => {
+    const headers = ['Field', 'Extracted Value', 'Source', 'Confidence Score (%)']
+    const rows = FIELD_KEYS.map((key) => {
+      const fieldData = result[key] || {}
+      const label = FIELD_LABELS[key] || key
+      const val = `"${(fieldData.value || '').replace(/"/g, '""')}"`
+      const src = `"${fieldData.source || 'unknown'}"`
+      const conf = fieldData.confidence ?? 0
+      return [label, val, src, conf].join(',')
+    })
+
+    const csvContent = [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `catalogiq-${result.id?.slice(0, 8) || 'product'}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    onCopy?.('Downloaded CSV file!')
+  }
+
   const handleCopyAll = () => {
     const text = FIELD_KEYS.map(
-      (k) => `${k}: ${result[k]?.value || '—'} (${result[k]?.source}, ${result[k]?.confidence}%)`
+      (k) => `${FIELD_LABELS[k] || k}: ${result[k]?.value || '—'} (${result[k]?.source}, ${result[k]?.confidence}%)`
     ).join('\n')
     navigator.clipboard.writeText(text)
     onCopy?.('Copied all fields to clipboard!')
@@ -50,6 +85,12 @@ export default function ResultCard({ result, onCopy }) {
   const avgConf = Math.round(
     FIELD_KEYS.reduce((sum, k) => sum + (result[k]?.confidence || 0), 0) / FIELD_KEYS.length
   )
+
+  const getConfidenceBadgeColor = (conf) => {
+    if (conf >= 85) return 'var(--confirmed)'
+    if (conf >= 50) return 'var(--inferred)'
+    return 'var(--unknown)'
+  }
 
   return (
     <div className={`card result-card ${isNew ? 'result-new' : ''}`} id="result-card"
@@ -78,12 +119,20 @@ export default function ResultCard({ result, onCopy }) {
             ⎘ Copy
           </button>
           <button
+            id="export-csv-btn"
+            className="action-btn"
+            onClick={handleExportCsv}
+            title="Export as CSV spreadsheet"
+          >
+            📊 CSV
+          </button>
+          <button
             id="export-json-btn"
             className="action-btn action-btn-primary"
-            onClick={handleExport}
+            onClick={handleExportJson}
             title="Export as JSON"
           >
-            ↓ Export
+            ↓ JSON
           </button>
         </div>
       </div>
@@ -106,7 +155,7 @@ export default function ResultCard({ result, onCopy }) {
         </div>
         <div className="stat-divider" />
         <div className="stat-item">
-          <span className="stat-label" style={{ color: 'var(--accent)' }}>
+          <span className="stat-label" style={{ color: getConfidenceBadgeColor(avgConf), fontWeight: '700' }}>
             ◎ {avgConf}% avg confidence
           </span>
         </div>

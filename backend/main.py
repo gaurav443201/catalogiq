@@ -1,6 +1,8 @@
 # pyrefly: ignore [missing-import]
 from fastapi import FastAPI, HTTPException
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
 from fastapi.responses import RedirectResponse
 from models import GenerateRequest
 from ai_service import extract_product_data
