@@ -7,9 +7,9 @@ import Toast from './components/Toast'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? '/api'
-    : 'http://localhost:8000')
+  (typeof window !== 'undefined' && window.location.hostname === 'localhost'
+    ? 'http://localhost:8000'
+    : 'https://d26lomwkk2xl9h.cloudfront.net')
 
 export default function App() {
   const [loading, setLoading] = useState(false)
