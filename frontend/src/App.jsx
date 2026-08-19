@@ -5,7 +5,11 @@ import ResultCard from './components/ResultCard'
 import HistoryPanel from './components/HistoryPanel'
 import Toast from './components/Toast'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? '/api'
+    : 'http://localhost:8000')
 
 export default function App() {
   const [loading, setLoading] = useState(false)
