@@ -5,8 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
 from fastapi.responses import RedirectResponse
 from models import GenerateRequest
-from ai_service import extract_product_data
+from ai_service import extract_product_data, extract_text_from_image, generate_sample_text
 from database import save_product, get_all_products, get_product_by_id
+from fastapi import UploadFile, File, Form
 import uuid
 from datetime import datetime, timezone
 
@@ -82,3 +83,38 @@ def product_detail(product_id: str):
     if not item:
         raise HTTPException(status_code=404, detail="Product not found")
     return item
+
+
+@app.get("/sample")
+def get_sample(category: str = "Ball Valve"):
+    """
+    Generate a dynamic realistic industrial product sample using GPT-4o-mini.
+    Provides a different technical snippet on every call.
+    """
+    try:
+        return generate_sample_text(category=category)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate sample: {str(e)}")
+
+
+@app.post("/extract-image")
+async def extract_image_endpoint(
+    file: UploadFile = File(...),
+    category: str = Form(default="industrial product"),
+):
+    """
+    Accept an uploaded image (JPG/PNG/WEBP) and use GPT-4o Vision
+    to extract visible product information as plain text.
+    """
+    allowed = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    mime = file.content_type or "image/jpeg"
+    if mime not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {mime}")
+
+    try:
+        image_bytes = await file.read()
+        extracted = extract_text_from_image(image_bytes, mime_type=mime, category=category)
+        return {"extracted_text": extracted}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Image extraction failed: {str(e)}")
+

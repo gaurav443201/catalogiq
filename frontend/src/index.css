@@ -421,6 +421,43 @@ body::before {
 
 .sample-btn:hover { background: rgba(99,102,241,0.15); border-color: var(--accent); color: var(--text-primary); }
 
+.ai-sample-btn {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  color: var(--accent-light, #a5b4fc);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.ai-sample-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: var(--accent);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.ai-sample-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner-mini {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+
 .generate-btn {
   background: var(--accent-grad);
   border: none;

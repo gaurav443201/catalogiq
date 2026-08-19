@@ -105,3 +105,31 @@ def extract_text_from_image(image_bytes: bytes, mime_type: str = "image/jpeg", c
         max_tokens=600,
     )
     return response.choices[0].message.content.strip()
+
+
+def generate_sample_text(category: str = "Ball Valve") -> dict:
+    """
+    Use GPT-4o-mini to dynamically generate a realistic, messy industrial product snippet
+    with varying specifications each time.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key)
+
+    prompt = f"""Generate a realistic raw catalog snippet or messy product description for an industrial '{category}'.
+Include realistic specifications such as brand name, model number, materials, sizes/dimensions, pressure ratings, temperature limits, connection types, standards/certifications (e.g. ANSI, ISO, CE, NPT), and industrial applications.
+Keep it between 2 to 4 sentences like an unformatted supplier catalog entry.
+Return ONLY the raw product text. Do not include quotes, titles, markdown, or commentary."""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are an expert industrial engineering catalog writer. You generate diverse, authentic industrial equipment descriptions with real-world technical specs."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.85, # high temperature ensures different samples every click
+        max_tokens=250,
+    )
+
+    text = response.choices[0].message.content.strip().strip('"').strip("'")
+    return {"category": category, "sample_text": text}
+
