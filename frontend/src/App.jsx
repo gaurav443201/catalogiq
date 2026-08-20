@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import axios from 'axios'
 import InputPanel from './components/InputPanel'
 import ResultCard from './components/ResultCard'
@@ -13,6 +13,7 @@ const API_URL =
     : 'https://d26lomwkk2xl9h.cloudfront.net')
 
 export default function App() {
+  const resultRef = useRef(null)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [batchResult, setBatchResult] = useState(null)
@@ -145,7 +146,10 @@ export default function App() {
     setBatchResult(null)
     setError(null)
     addToast('Loaded from history', 'info')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Scroll to result card after React renders it
+    setTimeout(() => {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 80)
   }
 
   const handleClear = () => {
@@ -223,7 +227,7 @@ export default function App() {
 
       {/* Single / Cross-Source Result */}
       {result && (
-        <>
+        <div ref={resultRef}>
           <div className="result-toolbar">
             <button
               id="new-analysis-btn"
@@ -234,7 +238,7 @@ export default function App() {
             </button>
           </div>
           <ResultCard result={result} onCopy={(msg) => addToast(msg, 'info')} />
-        </>
+        </div>
       )}
 
       {/* Batch Matrix Table Result */}
