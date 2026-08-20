@@ -189,24 +189,13 @@ export default function App() {
           explainable product data.
         </p>
 
-        <div className="header-stats">
-          {totalAnalyzed > 0 && (
+        {totalAnalyzed > 0 && (
+          <div className="header-stats">
             <span className="header-stat">
               <span className="header-stat-num">{totalAnalyzed}</span> products analyzed
             </span>
-          )}
-          <button
-            type="button"
-            className="benchmark-pill-btn"
-            onClick={handleRunBenchmark}
-            title="View verified ground-truth accuracy benchmark"
-          >
-            🎯 Accuracy Benchmark
-          </button>
-        </div>
-
-        {/* Hackathon badge */}
-        <div className="hackathon-badge">🏆 UniHack 2026</div>
+          </div>
+        )}
       </header>
 
       {/* Input Panel with Single, Batch, Cross-Source, and File Drop */}
