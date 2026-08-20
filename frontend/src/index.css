@@ -385,6 +385,26 @@ body::before {
   resize: vertical;
   outline: none;
   transition: var(--transition);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99,102,241,0.3) transparent;
+}
+
+.product-textarea::-webkit-scrollbar {
+  width: 4px;
+}
+
+.product-textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.product-textarea::-webkit-scrollbar-thumb {
+  background: rgba(99,102,241,0.3);
+  border-radius: 4px;
+}
+
+.product-textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(99,102,241,0.6);
 }
 
 .product-textarea::placeholder { color: var(--text-muted); }
