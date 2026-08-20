@@ -1,23 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const SOURCE_CONFIG = {
   input_text: {
     label: 'Confirmed',
     className: 'confirmed',
     icon: '●',
+    tooltip: (field, confidence, data) =>
+      data?.reasoning || `Directly stated in source text or user selection. Confidence: ${confidence}%`,
   },
   ai_inferred: {
     label: 'AI Inferred',
     className: 'inferred',
     icon: '◆',
-    tooltip: (field, confidence) =>
-      `Not directly stated — AI inferred from category norms & domain knowledge. Confidence: ${confidence}%`,
+    tooltip: (field, confidence, data) =>
+      data?.reasoning || `Not directly stated — AI inferred from category norms & domain knowledge. Confidence: ${confidence}%`,
+  },
+  conflict: {
+    label: 'Conflict',
+    className: 'conflict',
+    icon: '▲',
+    tooltip: (field, confidence, data) =>
+      data?.reasoning || 'Contradictory values detected within source text or across input sources. Manual review required.',
   },
   unknown: {
     label: 'Unknown',
     className: 'unknown',
     icon: '○',
-    tooltip: () => 'Could not be determined. Manual review recommended.',
+    tooltip: (field, confidence, data) =>
+      data?.reasoning || 'Could not be determined from input. Manual engineering review recommended.',
   },
 }
 
@@ -37,8 +47,20 @@ const FIELD_LABELS = {
 export default function FieldRow({ fieldKey, data, onCopy }) {
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [animatedWidth, setAnimatedWidth] = useState(0)
+
   const config = SOURCE_CONFIG[data.source] || SOURCE_CONFIG.unknown
   const isEmpty = !data.value
+  const hasRuleWarning = data.validation === 'outside_expected_range'
+
+  // Animate confidence bar from 0 to final target value on mount/update
+  useEffect(() => {
+    setAnimatedWidth(0)
+    const timer = setTimeout(() => {
+      setAnimatedWidth(data.confidence ?? 0)
+    }, 40)
+    return () => clearTimeout(timer)
+  }, [data.confidence, data.source])
 
   const handleCopyValue = () => {
     if (!data.value) return
@@ -49,69 +71,62 @@ export default function FieldRow({ fieldKey, data, onCopy }) {
   }
 
   return (
-    <div className="field-row" id={`field-row-${fieldKey}`}>
+    <div className={`field-row${data.source === 'conflict' ? ' row-conflict' : ''}`} id={`field-row-${fieldKey}`}>
       <span className="field-label">{FIELD_LABELS[fieldKey] || fieldKey}</span>
 
       <span
-        className={`field-value ${isEmpty ? 'empty' : 'copyable'}`}
+        className={`field-value ${isEmpty ? 'empty' : 'copyable'}${data.source === 'conflict' ? ' text-conflict' : ''}`}
         onClick={handleCopyValue}
-        title={!isEmpty ? 'Click to copy' : ''}
+        title={!isEmpty ? 'Click to copy value' : ''}
       >
         {copied ? '✓ Copied!' : isEmpty ? '—' : data.value}
       </span>
 
       <div className="field-right">
+        {hasRuleWarning && (
+          <span
+            className="rule-warning-tag"
+            title="Non-AI rule-based sanity check: Value falls outside standard engineering range for this category."
+          >
+            ⚠️ Rule Check
+          </span>
+        )}
+
         {data.source !== 'unknown' && (
-          <div className="confidence-wrap">
+          <div className="confidence-wrap" title={`Confidence: ${data.confidence}%`}>
             <div className="confidence-bar">
               <div
                 className={`confidence-fill ${config.className}`}
-                style={{ width: `${data.confidence}%` }}
+                style={{ width: `${animatedWidth}%` }}
               />
             </div>
             <span className="confidence-pct">{data.confidence}%</span>
           </div>
         )}
 
-        <span className={`badge ${config.className}`}>
-          {config.icon} {config.label}
-        </span>
+        <div
+          className="badge-tooltip-wrap"
+          onMouseEnter={() => setTooltipVisible(true)}
+          onMouseLeave={() => setTooltipVisible(false)}
+        >
+          <span className={`badge ${config.className}`}>
+            {config.icon} {config.label}
+          </span>
 
-        {(data.source === 'ai_inferred' || data.source === 'unknown') && (
-          <div
-            className="tooltip-wrap"
-            onMouseEnter={() => setTooltipVisible(true)}
-            onMouseLeave={() => setTooltipVisible(false)}
-          >
-            <div
-              className="tooltip-trigger"
-              style={
-                data.source === 'unknown'
-                  ? {
-                      background: 'rgba(255,71,87,0.2)',
-                      border: '1px solid rgba(255,71,87,0.4)',
-                      color: 'var(--unknown)',
-                    }
-                  : {}
-              }
-            >
-              {data.source === 'unknown' ? '!' : '?'}
+          {tooltipVisible && (
+            <div className={`tooltip-box ${config.className}`}>
+              {hasRuleWarning && (
+                <div className="tooltip-rule-alert">
+                  ⚠️ <strong>Rule Check Alert:</strong> Non-AI validation flagged this value.
+                </div>
+              )}
+              <div>{config.tooltip(fieldKey, data.confidence, data)}</div>
             </div>
-            {tooltipVisible && (
-              <div
-                className="tooltip-box"
-                style={
-                  data.source === 'unknown'
-                    ? { borderColor: 'rgba(255,71,87,0.3)' }
-                    : {}
-                }
-              >
-                {config.tooltip(fieldKey, data.confidence)}
-              </div>
-            )}
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
 }
+
+

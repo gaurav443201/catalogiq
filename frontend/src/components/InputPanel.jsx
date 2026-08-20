@@ -13,54 +13,35 @@ const CATEGORIES = [
   { value: 'Compressor',        icon: '🏭' },
 ]
 
-// Fallbacks for instant response or offline resilience
-const FALLBACK_TEMPLATES = {
-  'Ball Valve': [
-    'XYZ FlowTech 2" Stainless Steel 316 Ball Valve. Full port, ANSI Class 300 flanged connection with PTFE seals. Max pressure rating 600 WOG, temp range -20°F to 400°F. Certified to ISO 9001 and API 6D. Used in petrochemical and steam processing.',
-    'Apollo 1-1/4 inch Brass Ball Valve, female NPT threaded connections. Rated 400 PSI CWP, blowout-proof stem design. Approved for potable water and natural gas shutoff services.',
-    'Heavy-duty 4" Carbon Steel WCB Flanged Ball Valve, Class 150. Lever operated with locking device, firesafe certified to API 607. Ideal for oil refinery pipelines.',
-  ],
-  'Industrial Motor': [
-    'Siemens 30kW 3-Phase Squirrel Cage Induction Motor, IE4 Super Premium Efficiency. Frame size 200L, 2950 RPM, 415V/50Hz. Cast iron housing, IP66 enclosure with PTC thermistors. Suitable for continuous duty pump & compressor drives.',
-    'ABB 7.5 HP TEFC Severe Duty AC Motor, 1750 RPM, 460V, NEMA Premium efficiency. Class H insulation, inverter ready with roller bearings for heavy belt loads.',
-  ],
-  'Pump': [
-    'Grundfos CR32-4 Multi-Stage Centrifugal Pump, 15 kW motor, flow capacity 32 m³/h at 78m head. 316 Stainless Steel wetted parts, ANSI 2" suction/discharge. For boiler feed and reverse osmosis systems.',
-    'KSB MegaCPK End Suction Chemical Process Pump, ductile iron casing with duplex stainless impeller. Handles corrosive slurries up to 180°C at 16 bar.',
-  ],
-  'Pressure Gauge': [
-    'WIKA 232.50 4.5" Dial Industrial Pressure Gauge, 0-1000 PSI range. Stainless steel 316 case and bourdon tube, 1/2" NPT bottom mount. Glycerin liquid filled for vibration resistance, ASME B40.100 Grade 2A accuracy.',
-  ],
-  'Heat Exchanger': [
-    'Alfa Laval T8 Plate Heat Exchanger, titanium plates with EPDM clip-on gaskets. Design pressure 16 bar, temp range -10°C to 150°C. 4-inch flanged ports for seawater cooling duties.',
-  ],
-  'Bearing': [
-    'SKF 22218 EK Spherical Roller Bearing, tapered bore 90mm ID x 160mm OD x 40mm width. C3 internal radial clearance, dynamic load rating 345 kN. Engineered for vibrating screens and heavy mining gearboxes.',
-  ],
-  'Sensor': [
-    'Endress+Hauser Cerabar PMP51 Digital Pressure Transmitter, 4-20mA HART output, piezoresistive measuring cell. 0 to 40 bar span, 316L diaphragm, ATEX Ex ia explosion proof rated for hazardous areas.',
-  ],
-  'Compressor': [
-    'Atlas Copco GA 37+ Rotary Screw Air Compressor, 37 kW (50 HP) oil-injected, delivering 225 CFM at 125 PSI (8.5 bar). Integrated air dryer, Elektronikon touch controller, low noise acoustic canopy.',
-  ],
-}
+const SAMPLE_BATCH_TEXT = `XYZ FlowTech 2" Stainless Steel 316 Ball Valve. Full port, ANSI Class 300 flanged connection with PTFE seals. Max pressure rating 600 WOG, temp range -20°F to 400°F. Certified to ISO 9001 and API 6D. Used in petrochemical and steam processing.
+---
+Apollo 1-1/4 inch Brass Ball Valve, female NPT threaded connections. Rated 400 PSI CWP, blowout-proof stem design. Approved for potable water and natural gas shutoff services.
+---
+Heavy-duty 4" Carbon Steel WCB Flanged Ball Valve, Class 150. Lever operated with locking device, firesafe certified to API 607. Ideal for oil refinery pipelines.`
 
-export default function InputPanel({ onGenerate, loading, apiUrl }) {
+const SAMPLE_CROSS_A = `FlowServe Series 5100 2" Ball Valve. High-performance 316 Stainless Steel construction with RTFE seats. Rated for 600 WOG service, 150 PSI saturated steam. NPT threaded connections with locking lever handle.`
+
+const SAMPLE_CROSS_B = `FlowServe Series 5100 Ball Valve. 3-inch nominal pipe size with Brass body construction. Class 300 flanged ends, maximum pressure rating 400 PSI. Intended for general water and compressed air shutoff.`
+
+const SAMPLE_INTERNAL_CONFLICT = `Heavy-Duty Industrial Ball Valve by Velan. 2-inch nominal size with stainless steel 316 body. Features 3-inch full bore design and rated for 600 WOG service. Note: Spec sheet also lists 800 PSI rating on page 4.`
+
+export default function InputPanel({
+  onGenerate,
+  onGenerateBatch,
+  onGenerateCrossSource,
+  loading,
+  apiUrl,
+}) {
+  const [tab, setTab] = useState('text') // 'text' | 'batch' | 'cross' | 'file'
   const [text, setText] = useState('')
+  const [batchText, setBatchText] = useState('')
+  const [sourceA, setSourceA] = useState('')
+  const [sourceB, setSourceB] = useState('')
   const [category, setCategory] = useState('Ball Valve')
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState('text') // 'text' | 'file'
   const [sampleLoading, setSampleLoading] = useState(false)
   const dropdownRef = useRef(null)
-
-  const handleSubmit = () => {
-    if (!text.trim()) return
-    onGenerate(text.trim(), category)
-  }
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSubmit()
-  }
+  const batchCsvRef = useRef(null)
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -75,12 +56,27 @@ export default function InputPanel({ onGenerate, loading, apiUrl }) {
 
   const selected = CATEGORIES.find((c) => c.value === category) || CATEGORIES[0]
 
-  const handleFileExtracted = (extractedText) => {
-    setText(extractedText)
-    setTab('text')
+  // Submit handlers
+  const handleSingleSubmit = () => {
+    if (!text.trim()) return
+    onGenerate(text.trim(), category)
   }
 
-  // Dynamic AI sample generator on click
+  const handleBatchSubmit = () => {
+    const items = batchText
+      .split('---')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (items.length === 0) return
+    onGenerateBatch(items, category)
+  }
+
+  const handleCrossSubmit = () => {
+    if (!sourceA.trim() || !sourceB.trim()) return
+    onGenerateCrossSource(sourceA.trim(), sourceB.trim(), category)
+  }
+
+  // Dynamic AI sample generator for Single
   const handleGenerateSample = async () => {
     setSampleLoading(true)
     try {
@@ -94,18 +90,45 @@ export default function InputPanel({ onGenerate, loading, apiUrl }) {
       }
       throw new Error('No sample text returned')
     } catch {
-      // Fallback: pick a random rich template for this category
-      const pool = FALLBACK_TEMPLATES[category] || FALLBACK_TEMPLATES['Ball Valve']
-      const randomItem = pool[Math.floor(Math.random() * pool.length)]
-      setText(randomItem)
+      setText(SAMPLE_BATCH_TEXT.split('---')[0].trim())
     } finally {
       setSampleLoading(false)
     }
   }
 
+  const handleLoadConflictSample = () => {
+    setText(SAMPLE_INTERNAL_CONFLICT)
+  }
+
+  // Batch CSV file upload parser
+  const handleBatchCsvUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      const content = evt.target.result || ''
+      const lines = content
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.length > 5)
+      setBatchText(lines.join('\n---\n'))
+    }
+    reader.readAsText(file)
+  }
+
+  const handleFileExtracted = (extractedText) => {
+    setText(extractedText)
+    setTab('text')
+  }
+
+  const batchCount = batchText
+    .split('---')
+    .map((s) => s.trim())
+    .filter(Boolean).length
+
   return (
     <div className="card input-panel">
-      {/* Header row */}
+      {/* Header row with tabs & Category dropdown */}
       <div className="input-panel-header">
         <div className="input-tabs">
           <button
@@ -114,7 +137,23 @@ export default function InputPanel({ onGenerate, loading, apiUrl }) {
             onClick={() => setTab('text')}
             type="button"
           >
-            📝 Text
+            📝 Single
+          </button>
+          <button
+            id="tab-batch"
+            className={`input-tab${tab === 'batch' ? ' active' : ''}`}
+            onClick={() => setTab('batch')}
+            type="button"
+          >
+            📦 Batch Mode
+          </button>
+          <button
+            id="tab-cross"
+            className={`input-tab${tab === 'cross' ? ' active' : ''}`}
+            onClick={() => setTab('cross')}
+            type="button"
+          >
+            ⚖️ Cross-Source
           </button>
           <button
             id="tab-file"
@@ -122,7 +161,7 @@ export default function InputPanel({ onGenerate, loading, apiUrl }) {
             onClick={() => setTab('file')}
             type="button"
           >
-            📁 File
+            📁 File Drop
           </button>
         </div>
 
@@ -157,49 +196,62 @@ export default function InputPanel({ onGenerate, loading, apiUrl }) {
         </div>
       </div>
 
-      {/* Tab content */}
-      {tab === 'text' ? (
+      {/* ── TAB 1: Single Text ────────────────────────────────────────── */}
+      {tab === 'text' && (
         <>
           <div className="textarea-wrapper">
             <textarea
               id="product-textarea"
               className="product-textarea"
-              placeholder={"Paste raw product text here — specs, descriptions, catalog snippets…\n\nOr click '✨ Generate Sample' below for an AI sample.\nPress Ctrl+Enter to generate."}
+              placeholder={"Paste raw product text here — specs, catalog descriptions, unformatted technical blurbs…\n\nPress Ctrl+Enter to generate."}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              maxLength={2000}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSingleSubmit()
+              }}
+              maxLength={2500}
             />
-            <span className="char-count">{text.length}/2000</span>
+            <span className="char-count">{text.length}/2500</span>
           </div>
 
           <div className="input-actions">
-            {/* Single dynamic AI Sample button */}
-            <button
-              id="dynamic-sample-btn"
-              className="sample-btn ai-sample-btn"
-              onClick={handleGenerateSample}
-              disabled={sampleLoading || loading}
-              type="button"
-              title="Generate a unique realistic industrial sample using ChatGPT"
-            >
-              {sampleLoading ? (
-                <>
-                  <div className="spinner-mini" />
-                  Generating Sample…
-                </>
-              ) : (
-                <>
-                  <span>🎲</span>
-                  Try AI Sample
-                </>
-              )}
-            </button>
+            <div className="sample-btns">
+              <button
+                id="dynamic-sample-btn"
+                className="sample-btn ai-sample-btn"
+                onClick={handleGenerateSample}
+                disabled={sampleLoading || loading}
+                type="button"
+                title="Generate a unique realistic industrial sample using ChatGPT"
+              >
+                {sampleLoading ? (
+                  <>
+                    <div className="spinner-mini" />
+                    Generating…
+                  </>
+                ) : (
+                  <>
+                    <span>🎲</span>
+                    Try AI Sample
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="sample-btn"
+                onClick={handleLoadConflictSample}
+                disabled={loading}
+                title="Load a product blurb with internal contradiction to test Conflict detection"
+              >
+                <span>⚡</span> Contradiction Test
+              </button>
+            </div>
 
             <button
               id="generate-btn"
               className="generate-btn"
-              onClick={handleSubmit}
+              onClick={handleSingleSubmit}
               disabled={loading || !text.trim()}
             >
               {loading ? (
@@ -216,7 +268,135 @@ export default function InputPanel({ onGenerate, loading, apiUrl }) {
             </button>
           </div>
         </>
-      ) : (
+      )}
+
+      {/* ── TAB 2: Batch Mode ─────────────────────────────────────────── */}
+      {tab === 'batch' && (
+        <div className="batch-input-view">
+          <div className="batch-instruction-strip">
+            <span>ℹ️ Paste multiple product descriptions separated by <code>---</code> or upload a CSV.</span>
+            <input
+              ref={batchCsvRef}
+              type="file"
+              accept=".csv,.txt"
+              style={{ display: 'none' }}
+              onChange={handleBatchCsvUpload}
+            />
+            <button
+              type="button"
+              className="batch-upload-link"
+              onClick={() => batchCsvRef.current?.click()}
+            >
+              📂 Upload CSV/TXT
+            </button>
+          </div>
+
+          <div className="textarea-wrapper">
+            <textarea
+              id="batch-textarea"
+              className="product-textarea"
+              style={{ minHeight: '180px' }}
+              placeholder={"Product 1 description...\n---\nProduct 2 description...\n---\nProduct 3 description..."}
+              value={batchText}
+              onChange={(e) => setBatchText(e.target.value)}
+            />
+            <span className="char-count">{batchCount} item{batchCount !== 1 ? 's' : ''} detected</span>
+          </div>
+
+          <div className="input-actions">
+            <button
+              type="button"
+              className="sample-btn"
+              onClick={() => setBatchText(SAMPLE_BATCH_TEXT)}
+              disabled={loading}
+            >
+              <span>📋</span> Load 3-SKU Sample Batch
+            </button>
+
+            <button
+              id="batch-generate-btn"
+              className="generate-btn"
+              onClick={handleBatchSubmit}
+              disabled={loading || batchCount === 0}
+            >
+              {loading ? (
+                <>
+                  <div className="spinner" />
+                  Processing Batch ({batchCount})…
+                </>
+              ) : (
+                <>
+                  <span>📦</span>
+                  Process Batch ({batchCount})
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 3: Cross-Source Validation ───────────────────────────── */}
+      {tab === 'cross' && (
+        <div className="cross-source-view">
+          <div className="cross-source-grid">
+            <div className="cross-source-col">
+              <label className="cross-label">📄 Source A (e.g. Supplier Catalog)</label>
+              <textarea
+                className="product-textarea cross-textarea"
+                placeholder="Paste primary specification text here..."
+                value={sourceA}
+                onChange={(e) => setSourceA(e.target.value)}
+              />
+            </div>
+            <div className="cross-source-col">
+              <label className="cross-label">📑 Source B (e.g. Technical Datasheet)</label>
+              <textarea
+                className="product-textarea cross-textarea"
+                placeholder="Paste secondary specification text to verify against Source A..."
+                value={sourceB}
+                onChange={(e) => setSourceB(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="input-actions">
+            <button
+              type="button"
+              className="sample-btn"
+              onClick={() => {
+                setSourceA(SAMPLE_CROSS_A)
+                setSourceB(SAMPLE_CROSS_B)
+              }}
+              disabled={loading}
+              title="Load two conflicting supplier datasheets"
+            >
+              <span>⚖️</span> Load Conflict Sample
+            </button>
+
+            <button
+              id="cross-generate-btn"
+              className="generate-btn"
+              onClick={handleCrossSubmit}
+              disabled={loading || !sourceA.trim() || !sourceB.trim()}
+            >
+              {loading ? (
+                <>
+                  <div className="spinner" />
+                  Comparing Sources…
+                </>
+              ) : (
+                <>
+                  <span>⚖️</span>
+                  Compare & Extract
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 4: File Drop ─────────────────────────────────────────── */}
+      {tab === 'file' && (
         <FileDropZone
           onExtracted={handleFileExtracted}
           category={category}
@@ -226,3 +406,4 @@ export default function InputPanel({ onGenerate, loading, apiUrl }) {
     </div>
   )
 }
+

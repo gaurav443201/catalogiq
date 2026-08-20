@@ -1,26 +1,31 @@
 # pyrefly: ignore [missing-import]
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
 from fastapi.responses import RedirectResponse
-from models import GenerateRequest
-from ai_service import extract_product_data, extract_text_from_image, generate_sample_text
+from models import GenerateRequest, BatchGenerateRequest, CrossSourceRequest
+from ai_service import (
+    extract_product_data,
+    extract_text_from_image,
+    generate_sample_text,
+    compare_cross_sources,
+)
 from database import save_product, get_all_products, get_product_by_id
-from fastapi import UploadFile, File, Form
+from accuracy_benchmark import run_accuracy_benchmark
 import uuid
 from datetime import datetime, timezone
 
 app = FastAPI(
     title="CatalogIQ API",
     description="AI-Powered Product Intelligence for Industrial Commerce",
-    version="1.0.0",
+    version="1.1.0",
 )
 
 # ─── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten to Amplify domain after deployment
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -36,19 +41,27 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "CatalogIQ API"}
+    return {"status": "ok", "service": "CatalogIQ API", "version": "1.1.0"}
 
 
 @app.post("/generate")
 def generate(request: GenerateRequest):
     """
-    Accept raw product text, run AI extraction, save to DynamoDB, return result.
+    Accept raw product text, run AI extraction & rule-based sanity checks,
+    save to DynamoDB, and return enriched record.
     """
     try:
-        # 1. Run AI extraction (or mock)
         ai_result = extract_product_data(request.raw_text, request.category)
 
-        # 2. Build full record
+        # Ensure user-selected category is always Confirmed at 100% confidence
+        if request.category:
+            ai_result["category"] = {
+                "value": request.category,
+                "source": "input_text",
+                "confidence": 100,
+                "reasoning": "Confirmed from user category selection",
+            }
+
         record = {
             "id": str(uuid.uuid4()),
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -57,14 +70,98 @@ def generate(request: GenerateRequest):
             **ai_result,
         }
 
-        # 3. Save to DynamoDB
         save_product(record)
-
-        # 4. Return record
         return record
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
+
+@app.post("/generate-batch")
+def generate_batch(request: BatchGenerateRequest):
+    """
+    Accept an array of raw product text snippets, extract each item,
+    save records to DynamoDB, and return array of structured results.
+    """
+    try:
+        results = []
+        for text in request.items:
+            clean_text = text.strip()
+            if not clean_text:
+                continue
+
+            ai_result = extract_product_data(clean_text, request.category)
+
+            if request.category:
+                ai_result["category"] = {
+                    "value": request.category,
+                    "source": "input_text",
+                    "confidence": 100,
+                    "reasoning": "Confirmed from user category selection",
+                }
+
+            record = {
+                "id": str(uuid.uuid4()),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "raw_input": clean_text,
+                "input_category": request.category,
+                **ai_result,
+            }
+
+            save_product(record)
+            results.append(record)
+
+        return {"count": len(results), "products": results}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch generation failed: {str(e)}")
+
+
+@app.post("/generate-cross-source")
+def generate_cross_source(request: CrossSourceRequest):
+    """
+    Accept Source A and Source B for the same product, extract from both,
+    compare field-by-field, flag discrepancies as 'conflict', and persist.
+    """
+    try:
+        result_a = extract_product_data(request.source_a, request.category)
+        result_b = extract_product_data(request.source_b, request.category)
+
+        merged_result = compare_cross_sources(result_a, result_b, request.category)
+
+        if request.category:
+            merged_result["category"] = {
+                "value": request.category,
+                "source": "input_text",
+                "confidence": 100,
+                "reasoning": "Confirmed from user category selection",
+            }
+
+        record = {
+            "id": str(uuid.uuid4()),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "raw_input": f"--- SOURCE A ---\n{request.source_a}\n\n--- SOURCE B ---\n{request.source_b}",
+            "input_category": request.category,
+            "mode": "cross_source",
+            **merged_result,
+        }
+
+        save_product(record)
+        return record
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cross-source analysis failed: {str(e)}")
+
+
+@app.get("/accuracy-benchmark")
+def get_accuracy_benchmark():
+    """
+    Evaluate actual extraction accuracy against the golden benchmark dataset.
+    """
+    try:
+        return run_accuracy_benchmark()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Benchmark calculation failed: {str(e)}")
 
 
 @app.get("/products")
@@ -89,7 +186,6 @@ def product_detail(product_id: str):
 def get_sample(category: str = "Ball Valve"):
     """
     Generate a dynamic realistic industrial product sample using GPT-4o-mini.
-    Provides a different technical snippet on every call.
     """
     try:
         return generate_sample_text(category=category)
@@ -117,4 +213,5 @@ async def extract_image_endpoint(
         return {"extracted_text": extracted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image extraction failed: {str(e)}")
+
 
