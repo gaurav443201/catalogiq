@@ -128,6 +128,7 @@ def enrich_unilog_endpoint(request: UnilogEnrichRequest):
     """
     Enriches a raw catalog item into the full Unilog 252-column delivery format,
     building all 5 description lengths and validating against internal content guidelines.
+    Saves the enriched structured item in the products history database.
     """
     try:
         result = enrich_unilog_item(
@@ -142,7 +143,41 @@ def enrich_unilog_endpoint(request: UnilogEnrichRequest):
             item_class=request.item_class or "",
             fine=request.fine or ""
         )
-        return result
+        
+        # Build standard record to save in DynamoDB (supporting both list and full result details views)
+        db_record = {
+            "id": str(uuid.uuid4()),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "input_category": request.item_class or "Unilog Enrichment",
+            "raw_input": request.part_desc,
+            
+            # Standard dashboard listing parameters
+            "product_name": {
+                "value": result["descriptions"]["short_desc"] or request.mfg_part_num or "Unnamed Product",
+                "source": "input_text",
+                "confidence": 100
+            },
+            "category": {
+                "value": result["summary"]["classpath"] or request.item_class or "Unilog Item",
+                "source": "ai_inferred",
+                "confidence": int(result["summary"].get("brand_confidence", 100))
+            },
+            "brand": {
+                "value": result["summary"]["brand_name"] or "-- Unbranded --",
+                "source": "ai_inferred",
+                "confidence": int(result["summary"].get("brand_confidence", 100))
+            },
+            
+            # Unilog Result Schema parameters
+            "summary": result["summary"],
+            "descriptions": result["descriptions"],
+            "validation_report": result["validation_report"],
+            "attributes": result["attributes"],
+            "delivery_format_252": result["delivery_format_252"],
+        }
+        
+        save_product(db_record)
+        return db_record
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unilog enrichment failed: {str(e)}")
 

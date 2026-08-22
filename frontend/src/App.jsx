@@ -64,6 +64,7 @@ export default function App() {
       setResult(response.data)
       setScreen('result')
       addToast('Product successfully enriched into 5 descriptions & 252 delivery columns!')
+      fetchHistory()
       setTimeout(() => {
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 100)
