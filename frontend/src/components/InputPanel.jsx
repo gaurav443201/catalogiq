@@ -99,6 +99,7 @@ export default function InputPanel({
   const [sourceB, setSourceB] = useState('')
   const [category, setCategory] = useState('Built-In Dishwashers')
   const [open, setOpen] = useState(false)
+  const [sampleLoading, setSampleLoading] = useState(false)
   const dropdownRef = useRef(null)
 
   useEffect(() => {
@@ -112,6 +113,20 @@ export default function InputPanel({
   }, [])
 
   const selected = CATEGORIES.find((c) => c.value === category) || CATEGORIES[0]
+
+  const handleGenerateAISample = async () => {
+    setSampleLoading(true)
+    try {
+      const res = await axios.get(`${apiUrl}/sample?category=${encodeURIComponent(category)}`)
+      if (res.data?.sample_text) {
+        setText(res.data.sample_text)
+      }
+    } catch {
+      setText(`Realistic raw catalog entry for ${category} with MPN-XYZ-123. Material: Stainless Steel. Connection: NPT threaded. Rating: 150# ANSI.`)
+    } finally {
+      setSampleLoading(false)
+    }
+  }
 
   const handleLoadUnilogSample = (sample) => {
     setUnilogForm({
@@ -292,7 +307,23 @@ export default function InputPanel({
       {tab === 'text' && (
         <div className="tab-content">
           <div className="form-group">
-            <label>Raw Unstructured Product Text</label>
+            <div className="input-panel-header">
+              <label>Raw Unstructured Product Text</label>
+              <button
+                type="button"
+                className="ai-sample-btn"
+                onClick={handleGenerateAISample}
+                disabled={sampleLoading}
+              >
+                {sampleLoading ? (
+                  <>
+                    <span className="spinner-mini"></span> Generating...
+                  </>
+                ) : (
+                  '✨ Generate AI Sample'
+                )}
+              </button>
+            </div>
             <textarea
               className="textarea"
               rows={4}
