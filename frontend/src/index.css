@@ -2775,7 +2775,7 @@ body::before {
 }
 
 .top-nav-container {
-  max-width: 880px;
+  max-width: 1160px;
   margin: 0 auto;
   width: 100%;
   display: flex;
@@ -2849,7 +2849,7 @@ body::before {
 
 /* ─── Screen Layout Wrappers ─────────────────────────────────────────────── */
 .app-main-content {
-  max-width: 880px;
+  max-width: 1160px;
   margin: 0 auto;
   width: 100%;
   padding: 0 24px 80px;
@@ -2869,18 +2869,18 @@ body::before {
 }
 
 .screen-header {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .screen-header h2 {
-  font-size: 20px;
+  font-size: 25px;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .screen-header .screen-subtitle {
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-secondary);
 }
 
