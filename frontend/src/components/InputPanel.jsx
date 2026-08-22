@@ -100,6 +100,7 @@ export default function InputPanel({
   const [category, setCategory] = useState('Built-In Dishwashers')
   const [open, setOpen] = useState(false)
   const [sampleLoading, setSampleLoading] = useState(false)
+  const [liveSampleLoading, setLiveSampleLoading] = useState(false)
   const dropdownRef = useRef(null)
 
   useEffect(() => {
@@ -125,6 +126,42 @@ export default function InputPanel({
       setText(`Realistic raw catalog entry for ${category} with MPN-XYZ-123. Material: Stainless Steel. Connection: NPT threaded. Rating: 150# ANSI.`)
     } finally {
       setSampleLoading(false)
+    }
+  }
+
+  const handleGenerateLiveUnilogSample = async () => {
+    setLiveSampleLoading(true)
+    try {
+      const res = await axios.get(`${apiUrl}/unilog-sample-live?category=${encodeURIComponent(category)}`)
+      if (res.data) {
+        setUnilogForm({
+          mfg_part_num: res.data.mfg_part_num || '',
+          part_desc: res.data.part_desc || '',
+          part_manuf: res.data.part_manuf || '',
+          e1_brand: res.data.e1_brand || '-- Unbranded --',
+          unilog_brand: res.data.unilog_brand || '-- No Unilog Brand --',
+          dib_brand: res.data.dib_brand || '-- No DIB Brand --',
+          sku: res.data.sku || '',
+          dept: res.data.dept || '',
+          item_class: res.data.item_class || '',
+          fine: res.data.fine || '',
+        })
+      }
+    } catch {
+      setUnilogForm({
+        mfg_part_num: 'MPN-AI-SAMPLE',
+        part_desc: `AI Generated ${category} standard raw description`,
+        part_manuf: 'AI Industrial Supplier',
+        e1_brand: '-- Unbranded --',
+        unilog_brand: '-- No Unilog Brand --',
+        dib_brand: '-- No DIB Brand --',
+        sku: '123456',
+        dept: 'Industrial',
+        item_class: category,
+        fine: category,
+      })
+    } finally {
+      setLiveSampleLoading(false)
     }
   }
 
@@ -204,7 +241,23 @@ export default function InputPanel({
       {tab === 'unilog' && (
         <div className="tab-content">
           <div className="sample-chips-bar">
-            <span className="chips-label">🎯 1-Click Ground Truth Samples:</span>
+            <div className="input-panel-header">
+              <span className="chips-label">🎯 1-Click Ground Truth Samples:</span>
+              <button
+                type="button"
+                className="ai-sample-btn"
+                onClick={handleGenerateLiveUnilogSample}
+                disabled={liveSampleLoading}
+              >
+                {liveSampleLoading ? (
+                  <>
+                    <span className="spinner-mini"></span> Generating...
+                  </>
+                ) : (
+                  '✨ Generate AI Sample'
+                )}
+              </button>
+            </div>
             <div className="chips-scroll">
               {UNILOG_SAMPLES.map((sample, idx) => (
                 <button

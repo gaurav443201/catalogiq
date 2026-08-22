@@ -533,3 +533,57 @@ Return ONLY the raw product text. Do not include quotes, titles, markdown, or co
 
     text = response.choices[0].message.content.strip().strip('"').strip("'")
     return {"category": category, "sample_text": text}
+
+
+def generate_live_unilog_sample(category: str = "Ball Valve") -> dict:
+    """Use GPT-4o-mini to generate a realistic structured raw Unilog item."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=api_key)
+    
+    prompt = f"""Generate a realistic raw catalog record for a product in the category '{category}'.
+Return a JSON object with the following fields:
+- part_desc: a realistic raw catalog description or nameplate string (e.g. including manufacturer, series, key features)
+- mfg_part_num: a realistic model number or part number
+- part_manuf: a realistic manufacturer name
+- e1_brand: a realistic brand name (or "-- Unbranded --")
+- unilog_brand: "-- No Unilog Brand --"
+- dib_brand: "-- No DIB Brand --"
+- sku: a random 6 to 8 digit string
+- dept: a realistic department name (e.g. Plumbing, Electrical, Tools)
+- item_class: a realistic item class name (e.g. Valves, Lighting, Power Tools)
+- fine: a realistic fine category name
+
+Return ONLY valid JSON. No markdown, no quotes around the JSON block."""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You are a helpful industrial database generator. You output ONLY valid JSON product records."},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.85,
+        max_tokens=300,
+    )
+    
+    import json
+    try:
+        content = response.choices[0].message.content.strip()
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```json") or lines[0].startswith("```"):
+                content = "\n".join(lines[1:-1])
+        data = json.loads(content)
+        return data
+    except Exception:
+        return {
+            "part_desc": f"Premium {category} standard utility model",
+            "mfg_part_num": "MPN-AI-999",
+            "part_manuf": "AI Industrial Specialties",
+            "e1_brand": "-- Unbranded --",
+            "unilog_brand": "-- No Unilog Brand --",
+            "dib_brand": "-- No DIB Brand --",
+            "sku": "999888",
+            "dept": "Industrial",
+            "item_class": category,
+            "fine": category
+        }

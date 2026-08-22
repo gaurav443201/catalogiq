@@ -179,6 +179,16 @@ def get_unilog_samples():
     return {"samples": UNILOG_CURATED_SAMPLES}
 
 
+@app.get("/unilog-sample-live")
+def get_unilog_sample_live(category: str = "Ball Valve"):
+    """Generate a live AI structured catalog item using GPT-4o-mini."""
+    try:
+        from ai_service import generate_live_unilog_sample
+        return generate_live_unilog_sample(category=category)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate live unilog sample: {str(e)}")
+
+
 @app.get("/unilog-benchmark")
 @app.get("/accuracy-benchmark")
 def get_unilog_benchmark():
