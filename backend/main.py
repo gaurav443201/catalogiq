@@ -3,23 +3,30 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 # pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
-from fastapi.responses import RedirectResponse
-from models import GenerateRequest, BatchGenerateRequest, CrossSourceRequest
+from fastapi.responses import RedirectResponse, JSONResponse
+from models import (
+    GenerateRequest,
+    BatchGenerateRequest,
+    CrossSourceRequest,
+    UnilogEnrichRequest,
+    UnilogBatchRequest,
+)
 from ai_service import (
     extract_product_data,
     extract_text_from_image,
     generate_sample_text,
     compare_cross_sources,
+    enrich_unilog_item,
 )
 from database import save_product, get_all_products, get_product_by_id
-from accuracy_benchmark import run_accuracy_benchmark
+from accuracy_benchmark import run_accuracy_benchmark, run_unilog_ground_truth_benchmark
 import uuid
 from datetime import datetime, timezone
 
 app = FastAPI(
     title="CatalogIQ API",
-    description="AI-Powered Product Intelligence for Industrial Commerce",
-    version="1.1.0",
+    description="AI-Powered Product Intelligence for Industrial Commerce & Unilog Content Enrichment",
+    version="2.0.0",
 )
 
 # ─── CORS ──────────────────────────────────────────────────────────────────────
@@ -32,6 +39,76 @@ app.add_middleware(
 )
 
 
+# ─── Unilog Curated Test Samples (From 200-Item Ground Truth & 1000-Item Sets) ──
+UNILOG_CURATED_SAMPLES = [
+    {
+        "name": "Frigidaire Dishwasher (Ground Truth Item #1)",
+        "mfg_part_num": "PDSH4816AF",
+        "part_desc": "PDSH4816AF Dishwasher SS - Display Only",
+        "part_manuf": "Appliance Dealers Cooperative (APPDE)",
+        "e1_brand": "-- Unbranded --",
+        "unilog_brand": "-- No Unilog Brand --",
+        "dib_brand": "-- No DIB Brand --",
+        "sku": "1515863",
+        "dept": "Appliances",
+        "item_class": "Large Appliances",
+        "fine": "Dishwashers"
+    },
+    {
+        "name": "Whirlpool Eco Dishwasher (Ground Truth Item #2)",
+        "mfg_part_num": "WDTS7024RZ",
+        "part_desc": "WDTS7024RZ Dishwasher SS - Display Only",
+        "part_manuf": "Appliance Dealers Cooperative (APPDE)",
+        "e1_brand": "-- Unbranded --",
+        "unilog_brand": "-- No Unilog Brand --",
+        "dib_brand": "-- No DIB Brand --",
+        "sku": "1515867",
+        "dept": "Appliances",
+        "item_class": "Large Appliances",
+        "fine": "Dishwashers"
+    },
+    {
+        "name": "Milwaukee 5\" Cut Off Disc (Sample 1000)",
+        "mfg_part_num": "49-94-0013",
+        "part_desc": "49-94-0013 Milw 5\"x.045\"x7/8\" Metal Cut Off Disc",
+        "part_manuf": "Milwaukee Accessory (4031)",
+        "e1_brand": "-- Unbranded --",
+        "unilog_brand": "-- No Unilog Brand --",
+        "dib_brand": "-- No DIB Brand --",
+        "sku": "49940013",
+        "dept": "Tools",
+        "item_class": "Cutting Accessories",
+        "fine": "Cut Off Wheels"
+    },
+    {
+        "name": "TimberTech Azek PVC Decking (Sample 1000)",
+        "mfg_part_num": "ADB15516CS",
+        "part_desc": "1x6-16' Coastline Sq Edge - Vintage Azek PVC Decking",
+        "part_manuf": "Parksite (6151)",
+        "e1_brand": "TIMBERTECH",
+        "unilog_brand": "-- No Unilog Brand --",
+        "dib_brand": "-- No DIB Brand --",
+        "sku": "ADB15516CS",
+        "dept": "Building Materials",
+        "item_class": "Decking",
+        "fine": "PVC Decking"
+    },
+    {
+        "name": "Mueller Brass Fitting (Sample 1000 / Fittings LOV)",
+        "mfg_part_num": "3/8 CPLG BRS 150#",
+        "part_desc": "3/8 CPLG BRS 150# NPT Threaded Coupling",
+        "part_manuf": "Mueller Streamline (MUELL)",
+        "e1_brand": "-- Unbranded --",
+        "unilog_brand": "-- No Unilog Brand --",
+        "dib_brand": "-- No DIB Brand --",
+        "sku": "CPLG38BRS",
+        "dept": "Plumbing",
+        "item_class": "Fittings",
+        "fine": "Couplings"
+    }
+]
+
+
 # ─── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/", include_in_schema=False)
@@ -41,19 +118,87 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "CatalogIQ API", "version": "1.1.0"}
+    return {"status": "ok", "service": "CatalogIQ API", "version": "2.0.0"}
 
+
+# ─── Unilog Pipeline Endpoints ────────────────────────────────────────────────
+
+@app.post("/enrich-unilog")
+def enrich_unilog_endpoint(request: UnilogEnrichRequest):
+    """
+    Enriches a raw catalog item into the full Unilog 252-column delivery format,
+    building all 5 description lengths and validating against internal content guidelines.
+    """
+    try:
+        result = enrich_unilog_item(
+            mfg_part_num=request.mfg_part_num or "",
+            part_desc=request.part_desc,
+            part_manuf=request.part_manuf or "",
+            e1_brand=request.e1_brand or "",
+            unilog_brand=request.unilog_brand or "",
+            dib_brand=request.dib_brand or "",
+            sku=request.sku or "",
+            dept=request.dept or "",
+            item_class=request.item_class or "",
+            fine=request.fine or ""
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unilog enrichment failed: {str(e)}")
+
+
+@app.post("/enrich-batch-unilog")
+def enrich_batch_unilog_endpoint(request: UnilogBatchRequest):
+    """
+    Batch processes an array of raw Unilog items and returns structured results with 252 delivery columns.
+    """
+    try:
+        results = []
+        for item in request.items:
+            res = enrich_unilog_item(
+                mfg_part_num=item.mfg_part_num or "",
+                part_desc=item.part_desc,
+                part_manuf=item.part_manuf or "",
+                e1_brand=item.e1_brand or "",
+                unilog_brand=item.unilog_brand or "",
+                dib_brand=item.dib_brand or "",
+                sku=item.sku or "",
+                dept=item.dept or "",
+                item_class=item.item_class or "",
+                fine=item.fine or ""
+            )
+            results.append(res)
+        return {"count": len(results), "items": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch Unilog enrichment failed: {str(e)}")
+
+
+@app.get("/unilog-samples")
+def get_unilog_samples():
+    """Return pre-loaded ground-truth test items for 1-click evaluator testing."""
+    return {"samples": UNILOG_CURATED_SAMPLES}
+
+
+@app.get("/unilog-benchmark")
+@app.get("/accuracy-benchmark")
+def get_unilog_benchmark():
+    """
+    Evaluates pipeline accuracy against the 200-item Unilog ground-truth benchmark.
+    Returns field accuracy %, character limit compliance %, vocabulary rate %, and fraction accuracy %.
+    """
+    try:
+        return run_unilog_ground_truth_benchmark()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Benchmark evaluation failed: {str(e)}")
+
+
+# ─── Standard Workbench Endpoints ─────────────────────────────────────────────
 
 @app.post("/generate")
 def generate(request: GenerateRequest):
-    """
-    Accept raw product text, run AI extraction & rule-based sanity checks,
-    save to DynamoDB, and return enriched record.
-    """
     try:
         ai_result = extract_product_data(request.raw_text, request.category)
 
-        # Ensure user-selected category is always Confirmed at 100% confidence
         if request.category:
             ai_result["category"] = {
                 "value": request.category,
@@ -79,10 +224,6 @@ def generate(request: GenerateRequest):
 
 @app.post("/generate-batch")
 def generate_batch(request: BatchGenerateRequest):
-    """
-    Accept an array of raw product text snippets, extract each item,
-    save records to DynamoDB, and return array of structured results.
-    """
     try:
         results = []
         for text in request.items:
@@ -119,10 +260,6 @@ def generate_batch(request: BatchGenerateRequest):
 
 @app.post("/generate-cross-source")
 def generate_cross_source(request: CrossSourceRequest):
-    """
-    Accept Source A and Source B for the same product, extract from both,
-    compare field-by-field, flag discrepancies as 'conflict', and persist.
-    """
     try:
         result_a = extract_product_data(request.source_a, request.category)
         result_b = extract_product_data(request.source_b, request.category)
@@ -153,20 +290,8 @@ def generate_cross_source(request: CrossSourceRequest):
         raise HTTPException(status_code=500, detail=f"Cross-source analysis failed: {str(e)}")
 
 
-@app.get("/accuracy-benchmark")
-def get_accuracy_benchmark():
-    """
-    Evaluate actual extraction accuracy against the golden benchmark dataset.
-    """
-    try:
-        return run_accuracy_benchmark()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Benchmark calculation failed: {str(e)}")
-
-
 @app.get("/products")
 def products():
-    """Return all saved product records, newest first."""
     try:
         return get_all_products()
     except Exception as e:
@@ -175,7 +300,6 @@ def products():
 
 @app.get("/products/{product_id}")
 def product_detail(product_id: str):
-    """Return a single product by ID."""
     item = get_product_by_id(product_id)
     if not item:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -184,9 +308,6 @@ def product_detail(product_id: str):
 
 @app.get("/sample")
 def get_sample(category: str = "Ball Valve"):
-    """
-    Generate a dynamic realistic industrial product sample using GPT-4o-mini.
-    """
     try:
         return generate_sample_text(category=category)
     except Exception as e:
@@ -198,10 +319,6 @@ async def extract_image_endpoint(
     file: UploadFile = File(...),
     category: str = Form(default="industrial product"),
 ):
-    """
-    Accept an uploaded image (JPG/PNG/WEBP) and use GPT-4o Vision
-    to extract visible product information as plain text.
-    """
     allowed = {"image/jpeg", "image/png", "image/webp", "image/gif"}
     mime = file.content_type or "image/jpeg"
     if mime not in allowed:
@@ -213,5 +330,3 @@ async def extract_image_endpoint(
         return {"extracted_text": extracted}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image extraction failed: {str(e)}")
-
-

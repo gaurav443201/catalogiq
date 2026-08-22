@@ -5,6 +5,7 @@ import ResultCard from './components/ResultCard'
 import BatchResultTable from './components/BatchResultTable'
 import HistoryPanel from './components/HistoryPanel'
 import Toast from './components/Toast'
+import BenchmarkEvaluationModal from './components/BenchmarkEvaluationModal'
 
 const API_URL =
   import.meta.env.VITE_API_URL ||
@@ -21,8 +22,6 @@ export default function App() {
   const [history, setHistory] = useState([])
   const [toasts, setToasts] = useState([])
   const [totalAnalyzed, setTotalAnalyzed] = useState(0)
-  const [benchmarkData, setBenchmarkData] = useState(null)
-  const [benchmarkLoading, setBenchmarkLoading] = useState(false)
   const [showBenchmarkModal, setShowBenchmarkModal] = useState(false)
 
   const addToast = useCallback((message, type = 'success') => {
@@ -48,6 +47,31 @@ export default function App() {
     fetchHistory()
   }, [fetchHistory])
 
+  // Unilog Enrichment Pipeline
+  const handleEnrichUnilog = async (formData) => {
+    setLoading(true)
+    setError(null)
+    setResult(null)
+    setBatchResult(null)
+
+    try {
+      const response = await axios.post(`${API_URL}/enrich-unilog`, formData)
+      setResult(response.data)
+      addToast('Product successfully enriched into 5 descriptions & 252 delivery columns!')
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    } catch (err) {
+      const msg =
+        err.response?.data?.detail ||
+        'Unilog enrichment failed. Check backend connection.'
+      setError(msg)
+      addToast(msg, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Single analysis
   const handleGenerate = async (text, category) => {
     setLoading(true)
@@ -63,6 +87,9 @@ export default function App() {
       setResult(response.data)
       addToast('Product analyzed and saved successfully!')
       fetchHistory()
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
     } catch (err) {
       const msg =
         err.response?.data?.detail ||
@@ -116,6 +143,9 @@ export default function App() {
       setResult(response.data)
       addToast('Cross-source comparison completed!')
       fetchHistory()
+      setTimeout(() => {
+        resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
     } catch (err) {
       const msg =
         err.response?.data?.detail ||
@@ -127,26 +157,11 @@ export default function App() {
     }
   }
 
-  // Benchmark evaluation runner
-  const handleRunBenchmark = async () => {
-    setBenchmarkLoading(true)
-    setShowBenchmarkModal(true)
-    try {
-      const res = await axios.get(`${API_URL}/accuracy-benchmark`)
-      setBenchmarkData(res.data)
-    } catch {
-      addToast('Could not fetch benchmark results', 'error')
-    } finally {
-      setBenchmarkLoading(false)
-    }
-  }
-
   const handleHistorySelect = (product) => {
     setResult(product)
     setBatchResult(null)
     setError(null)
     addToast('Loaded from history', 'info')
-    // Scroll to result card after React renders it
     setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 80)
@@ -185,26 +200,33 @@ export default function App() {
           <span className="logo-text">CatalogIQ</span>
         </div>
         <p className="header-subtitle">
-          AI-powered product intelligence — transform messy technical specs into structured,
-          explainable product data.
+          Enterprise Product Content Enrichment Engine for Industrial Distributors — Built to Unilog Master Content & Delivery Standards.
         </p>
 
-        {totalAnalyzed > 0 && (
-          <div className="header-stats">
+        <div className="header-stats">
+          <button
+            className="btn btn-outline-light btn-sm"
+            onClick={() => setShowBenchmarkModal(true)}
+          >
+            🏆 Evaluator Accuracy Scorecard
+          </button>
+          {totalAnalyzed > 0 && (
             <span className="header-stat">
               <span className="header-stat-num">{totalAnalyzed}</span> products analyzed
             </span>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
-      {/* Input Panel with Single, Batch, Cross-Source, and File Drop */}
+      {/* Input Panel with Unilog Pipeline, Single, Batch, Cross-Source, and File Drop */}
       <InputPanel
         onGenerate={handleGenerate}
         onGenerateBatch={handleGenerateBatch}
         onGenerateCrossSource={handleGenerateCrossSource}
+        onEnrichUnilog={handleEnrichUnilog}
         loading={loading}
         apiUrl={API_URL}
+        onOpenBenchmark={() => setShowBenchmarkModal(true)}
       />
 
       {/* Error Banner */}
@@ -214,7 +236,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Single / Cross-Source Result */}
+      {/* Result Card (5-Tier Descriptions + 252 Delivery Schema + 10-Point Technical Specs) */}
       {result && (
         <div ref={resultRef}>
           <div className="result-toolbar">
@@ -223,7 +245,7 @@ export default function App() {
               className="new-analysis-btn"
               onClick={handleClear}
             >
-              ＋ New Analysis
+              ＋ New Item Analysis
             </button>
           </div>
           <ResultCard result={result} onCopy={(msg) => addToast(msg, 'info')} />
@@ -252,62 +274,12 @@ export default function App() {
         />
       )}
 
-      {/* Accuracy Benchmark Modal */}
-      {showBenchmarkModal && (
-        <div className="modal-backdrop" onClick={() => setShowBenchmarkModal(false)}>
-          <div className="card modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>🎯 Golden Test Set Accuracy Benchmark</h3>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setShowBenchmarkModal(false)}
-              >
-                ×
-              </button>
-            </div>
-
-            {benchmarkLoading ? (
-              <div className="modal-loading">
-                <div className="spinner" />
-                <p>Evaluating verified accuracy across golden test datasets…</p>
-              </div>
-            ) : benchmarkData ? (
-              <div className="benchmark-results">
-                <div className="benchmark-score-box">
-                  <span className="benchmark-score-num">{benchmarkData.accuracy_percentage}%</span>
-                  <span className="benchmark-score-label">
-                    Verified Extraction Precision ({benchmarkData.correctly_extracted}/{benchmarkData.total_fields_evaluated} confirmed fields)
-                  </span>
-                </div>
-
-                <p className="benchmark-desc">
-                  Tested against {benchmarkData.evaluation_samples} multi-category golden test standards with ground-truth validation.
-                </p>
-
-                <div className="benchmark-details-list">
-                  {benchmarkData.details?.map((d, i) => (
-                    <div key={i} className="benchmark-item-card">
-                      <strong>{d.category} Test Case</strong>
-                      <div className="benchmark-fields-grid">
-                        {Object.entries(d.fields || {}).map(([fk, fv]) => (
-                          <div key={fk} className="benchmark-field-row">
-                            <span className="b-field-name">{fk}:</span>
-                            <span className={`b-field-status ${fv.is_correct ? 'pass' : 'fail'}`}>
-                              {fv.is_correct ? '✓ Match' : 'Mismatch'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      )}
+      {/* Accuracy Benchmark Evaluation Modal */}
+      <BenchmarkEvaluationModal
+        isOpen={showBenchmarkModal}
+        onClose={() => setShowBenchmarkModal(false)}
+        apiUrl={API_URL}
+      />
     </div>
   )
 }
-

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import FieldRow from './FieldRow'
+import UnilogDeliveryTable from './UnilogDeliveryTable'
 
 const FIELD_KEYS = [
   'product_name', 'category', 'brand', 'material',
@@ -20,23 +21,22 @@ const FIELD_LABELS = {
   price_range:     'Price Range',
 }
 
-function countBySource(result) {
-  const counts = { confirmed: 0, inferred: 0, unknown: 0 }
-  FIELD_KEYS.forEach((key) => {
-    const source = result[key]?.source
-    if (source === 'input_text') counts.confirmed++
-    else if (source === 'ai_inferred') counts.inferred++
-    else counts.unknown++
-  })
-  return counts
-}
-
 export default function ResultCard({ result, onCopy }) {
-  const [showRaw, setShowRaw] = useState(false)
+  const [activeTab, setActiveTab] = useState('unilog_descriptions') // 'unilog_descriptions' | 'delivery_252' | 'standard_fields'
   const [isNew, setIsNew] = useState(true)
 
   if (!result) return null
-  const counts = countBySource(result)
+
+  const isUnilogFormat = Boolean(result.descriptions || result.delivery_format_252)
+  const desc = result.descriptions || {}
+  const vReport = result.validation_report || {}
+  const summary = result.summary || {}
+  const delivery = result.delivery_format_252 || {}
+
+  const handleCopyText = (text, label) => {
+    navigator.clipboard.writeText(text)
+    onCopy?.(`Copied ${label} to clipboard!`)
+  }
 
   const handleExportJson = () => {
     const blob = new Blob([JSON.stringify(result, null, 2)], {
@@ -45,51 +45,10 @@ export default function ResultCard({ result, onCopy }) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `catalogiq-${result.id?.slice(0, 8) || 'product'}.json`
+    a.download = `unilog-enriched-${result.summary?.mfg_part_num || result.id || 'product'}.json`
     a.click()
     URL.revokeObjectURL(url)
     onCopy?.('Downloaded JSON file!')
-  }
-
-  const handleExportCsv = () => {
-    const headers = ['Field', 'Extracted Value', 'Source', 'Confidence Score (%)']
-    const rows = FIELD_KEYS.map((key) => {
-      const fieldData = result[key] || {}
-      const label = FIELD_LABELS[key] || key
-      const val = `"${(fieldData.value || '').replace(/"/g, '""')}"`
-      const src = `"${fieldData.source || 'unknown'}"`
-      const conf = fieldData.confidence ?? 0
-      return [label, val, src, conf].join(',')
-    })
-
-    const csvContent = [headers.join(','), ...rows].join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `catalogiq-${result.id?.slice(0, 8) || 'product'}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    onCopy?.('Downloaded CSV file!')
-  }
-
-  const handleCopyAll = () => {
-    const text = FIELD_KEYS.map(
-      (k) => `${FIELD_LABELS[k] || k}: ${result[k]?.value || '—'} (${result[k]?.source}, ${result[k]?.confidence}%)`
-    ).join('\n')
-    navigator.clipboard.writeText(text)
-    onCopy?.('Copied all fields to clipboard!')
-  }
-
-  // Confidence score overall
-  const avgConf = Math.round(
-    FIELD_KEYS.reduce((sum, k) => sum + (result[k]?.confidence || 0), 0) / FIELD_KEYS.length
-  )
-
-  const getConfidenceBadgeColor = (conf) => {
-    if (conf >= 85) return 'var(--confirmed)'
-    if (conf >= 50) return 'var(--inferred)'
-    return 'var(--unknown)'
   }
 
   return (
@@ -98,99 +57,253 @@ export default function ResultCard({ result, onCopy }) {
 
       {/* Header */}
       <div className="result-header">
-        <span className="result-title">
-          <span>✦</span> Extraction Result
-        </span>
-        <div className="result-actions">
-          <button
-            id="toggle-raw-btn"
-            className="action-btn"
-            onClick={() => setShowRaw(!showRaw)}
-            title="Toggle raw JSON"
-          >
-            {showRaw ? '📋 Fields' : '{ } JSON'}
-          </button>
-          <button
-            id="copy-all-btn"
-            className="action-btn"
-            onClick={handleCopyAll}
-            title="Copy all fields"
-          >
-            ⎘ Copy
-          </button>
-          <button
-            id="export-csv-btn"
-            className="action-btn"
-            onClick={handleExportCsv}
-            title="Export as CSV spreadsheet"
-          >
-            📊 CSV
-          </button>
-          <button
-            id="export-json-btn"
-            className="action-btn action-btn-primary"
-            onClick={handleExportJson}
-            title="Export as JSON"
-          >
-            ↓ JSON
+        <div className="result-title-group">
+          <span className="result-badge">
+            {isUnilogFormat ? '⚡ Unilog Enriched Record' : 'Enriched Product Record'}
+          </span>
+          <h2 className="result-product-name">
+            {desc.short_desc || result.product_name?.value || result.summary?.brand_name || 'Standardized Product Record'}
+          </h2>
+          <div className="result-meta-row">
+            {summary.classpath && (
+              <span className="classpath-tag">📂 {summary.classpath}</span>
+            )}
+            {summary.brand_name && (
+              <span className="brand-tag">🏷️ {summary.brand_name}</span>
+            )}
+            {summary.mfg_name && (
+              <span className="mfg-tag">🏭 {summary.mfg_name}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="result-header-actions">
+          <button className="btn btn-secondary btn-sm" onClick={handleExportJson} title="Export full JSON structure">
+            💾 Export JSON
           </button>
         </div>
       </div>
 
-      {/* Stats strip */}
-      <div className="stats-strip">
-        <div className="stat-item">
-          <span className="stat-dot confirmed" />
-          <span className="stat-label">{counts.confirmed} Confirmed</span>
-        </div>
-        <div className="stat-divider" />
-        <div className="stat-item">
-          <span className="stat-dot inferred" />
-          <span className="stat-label">{counts.inferred} AI Inferred</span>
-        </div>
-        <div className="stat-divider" />
-        <div className="stat-item">
-          <span className="stat-dot unknown" />
-          <span className="stat-label">{counts.unknown} Unknown</span>
-        </div>
-        <div className="stat-divider" />
-        <div className="stat-item">
-          <span className="stat-label" style={{ color: getConfidenceBadgeColor(avgConf), fontWeight: '700' }}>
-            ◎ {avgConf}% avg confidence
+      {/* "Needs Human Review" Alert Banner */}
+      {vReport.needs_human_review ? (
+        <div className="human-review-banner warning">
+          <div className="banner-icon">⚠️</div>
+          <div className="banner-text">
+            <strong>Needs Human Review</strong>
+            <p>
+              Rule discrepancies detected: {vReport.violations?.concat(vReport.warnings || []).join(' • ') || 'Please verify technical attributes.'}
+            </p>
+          </div>
+          <span className="compliance-pill score-warning">
+            Score: {vReport.compliance_score || 85}%
           </span>
         </div>
-      </div>
-
-      {/* Raw JSON view */}
-      {showRaw ? (
-        <pre className="raw-json">
-          {JSON.stringify(
-            Object.fromEntries(
-              FIELD_KEYS.map((k) => [k, result[k]])
-            ),
-            null,
-            2
-          )}
-        </pre>
       ) : (
-        <div className="field-rows">
-          {FIELD_KEYS.map((key) =>
-            result[key] ? (
-              <FieldRow key={key} fieldKey={key} data={result[key]} onCopy={onCopy} />
-            ) : null
-          )}
+        <div className="human-review-banner success">
+          <div className="banner-icon">✓</div>
+          <div className="banner-text">
+            <strong>Fully Compliant with Unilog Content Standards</strong>
+            <p>All 5 description formulas, character limits, fractions, and approved UOM abbreviations verified.</p>
+          </div>
+          <span className="compliance-pill score-success">
+            100% Validated
+          </span>
         </div>
       )}
 
-      {/* Footer */}
-      <div className="result-footer">
-        <span className="result-id">ID: {result.id?.slice(0, 16)}…</span>
-        <span className="result-time">
-          {result.created_at
-            ? new Date(result.created_at).toLocaleString('en-IN')
-            : ''}
-        </span>
+      {/* Navigation Tabs */}
+      <div className="card-tabs">
+        <button
+          className={`tab-btn ${activeTab === 'unilog_descriptions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('unilog_descriptions')}
+        >
+          📝 5-Tier Descriptions & Bullets
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'delivery_252' ? 'active' : ''}`}
+          onClick={() => setActiveTab('delivery_252')}
+        >
+          📊 252 Delivery Columns
+        </button>
+        {result.product_name && (
+          <button
+            className={`tab-btn ${activeTab === 'standard_fields' ? 'active' : ''}`}
+            onClick={() => setActiveTab('standard_fields')}
+          >
+            🔍 10-Point Technical Schema
+          </button>
+        )}
       </div>
+
+      {/* Tab 1: 5-Tier Descriptions */}
+      {activeTab === 'unilog_descriptions' && (
+        <div className="descriptions-container">
+          
+          {/* 1. Invoice Description */}
+          <div className="desc-box invoice-box">
+            <div className="desc-box-header">
+              <div className="desc-title-area">
+                <span className="desc-badge">🧾 Tier 1: Till Receipt & ERP</span>
+                <h4>Invoice Description (≤ 40 chars, ALL CAPS)</h4>
+              </div>
+              <div className="desc-meta">
+                <span className={`char-counter ${vReport.invoice_desc_len <= 40 ? 'valid' : 'invalid'}`}>
+                  {desc.invoice_desc?.length || 0} / 40 chars
+                </span>
+                <button
+                  className="copy-mini-btn"
+                  onClick={() => handleCopyText(desc.invoice_desc, 'Invoice Description')}
+                  title="Copy"
+                >
+                  📋 Copy
+                </button>
+              </div>
+            </div>
+            <div className="desc-content-bubble invoice-text">
+              <code>{desc.invoice_desc || '—'}</code>
+            </div>
+            <p className="desc-rule-hint">Rule: Shortened abbreviations, all uppercase, maximum 40 characters for POS terminals.</p>
+          </div>
+
+          {/* 2. Mobile Description */}
+          <div className="desc-box mobile-box">
+            <div className="desc-box-header">
+              <div className="desc-title-area">
+                <span className="desc-badge">📱 Tier 2: Mobile App</span>
+                <h4>Mobile Description (60 – 80 chars)</h4>
+              </div>
+              <div className="desc-meta">
+                <span className={`char-counter ${(desc.mobile_desc?.length >= 60 && desc.mobile_desc?.length <= 80) ? 'valid' : 'warning'}`}>
+                  {desc.mobile_desc?.length || 0} chars (target 60-80)
+                </span>
+                <button
+                  className="copy-mini-btn"
+                  onClick={() => handleCopyText(desc.mobile_desc, 'Mobile Description')}
+                  title="Copy"
+                >
+                  📋 Copy
+                </button>
+              </div>
+            </div>
+            <div className="desc-content-bubble">
+              <p>{desc.mobile_desc || '—'}</p>
+            </div>
+            <p className="desc-rule-hint">Rule: Comma-separated format optimized for iOS/Android mobile distributor catalog cards.</p>
+          </div>
+
+          {/* 3. Product Title / Short Description */}
+          <div className="desc-box title-box">
+            <div className="desc-box-header">
+              <div className="desc-title-area">
+                <span className="desc-badge">🏷️ Tier 3: Search Engine & SRP</span>
+                <h4>Product Title / Short Description</h4>
+              </div>
+              <button
+                className="copy-mini-btn"
+                onClick={() => handleCopyText(desc.short_desc, 'Product Title')}
+                title="Copy"
+              >
+                📋 Copy
+              </button>
+            </div>
+            <div className="desc-content-bubble">
+              <p><strong>{desc.short_desc || '—'}</strong></p>
+            </div>
+            <p className="desc-rule-hint">Formula: Brand® + Series + MPN + Item Type + Key Attributes</p>
+          </div>
+
+          {/* 4. Long Description */}
+          <div className="desc-box long-box">
+            <div className="desc-box-header">
+              <div className="desc-title-area">
+                <span className="desc-badge">📖 Tier 4: Product Detail Page (PDP)</span>
+                <h4>Long Description (with Fractions & Approved UOMs)</h4>
+              </div>
+              <button
+                className="copy-mini-btn"
+                onClick={() => handleCopyText(desc.long_desc, 'Long Description')}
+                title="Copy"
+              >
+                📋 Copy
+              </button>
+            </div>
+            <div className="desc-content-bubble">
+              <p>{desc.long_desc || '—'}</p>
+            </div>
+            <p className="desc-rule-hint">Rule: Contains complete specifications, dimensions in trade fractions (e.g. 50-1/4 in), and Additional Information.</p>
+          </div>
+
+          {/* 5. Retail / Marketing Description & Features */}
+          <div className="desc-box marketing-box">
+            <div className="desc-box-header">
+              <div className="desc-title-area">
+                <span className="desc-badge">🎯 Tier 5: Marketing & Digital Features</span>
+                <h4>Marketing Description & Bullet Features (ITEM_FEATURES 1..20)</h4>
+              </div>
+            </div>
+            {desc.marketing_desc && (
+              <div className="desc-content-bubble mkt-para">
+                <p><em>{desc.marketing_desc}</em></p>
+              </div>
+            )}
+
+            {desc.features?.length > 0 && (
+              <div className="features-bullet-list">
+                <h5>Key Item Features:</h5>
+                <ul>
+                  {desc.features.map((feat, fIdx) => (
+                    <li key={fIdx}>
+                      <span className="feat-num">ITEM_FEATURES_{fIdx + 1}:</span> {feat}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Normalized LOV Attributes Grid */}
+          {result.attributes?.length > 0 && (
+            <div className="desc-box attributes-overview-box">
+              <div className="desc-box-header">
+                <h4>Normalized LOV Technical Attributes</h4>
+              </div>
+              <div className="attributes-chip-grid">
+                {result.attributes.map((attr, aIdx) => (
+                  <div key={aIdx} className="attribute-chip">
+                    <span className="attr-chip-label">{attr.label}:</span>
+                    <span className="attr-chip-val">
+                      {attr.value} {attr.uom && <span className="attr-chip-uom">({attr.uom})</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* Tab 2: 252-Column Delivery Table */}
+      {activeTab === 'delivery_252' && (
+        <UnilogDeliveryTable deliveryRecord={delivery} onNotify={onCopy} />
+      )}
+
+      {/* Tab 3: Standard 10-Point Technical Schema */}
+      {activeTab === 'standard_fields' && result.product_name && (
+        <div className="fields-grid" id="fields-grid">
+          {FIELD_KEYS.map((key) => (
+            <FieldRow
+              key={key}
+              fieldKey={key}
+              label={FIELD_LABELS[key]}
+              data={result[key]}
+              onCopy={onCopy}
+            />
+          ))}
+        </div>
+      )}
+
     </div>
   )
 }

@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
@@ -41,3 +42,20 @@ class CrossSourceRequest(BaseModel):
     source_a: str
     source_b: str
     category: Optional[str] = "Ball Valve"
+
+
+class UnilogEnrichRequest(BaseModel):
+    mfg_part_num: Optional[str] = ""
+    part_desc: str
+    part_manuf: Optional[str] = ""
+    e1_brand: Optional[str] = ""
+    unilog_brand: Optional[str] = ""
+    dib_brand: Optional[str] = ""
+    sku: Optional[str] = ""
+    dept: Optional[str] = ""
+    item_class: Optional[str] = ""
+    fine: Optional[str] = ""
+
+
+class UnilogBatchRequest(BaseModel):
+    items: List[UnilogEnrichRequest]
