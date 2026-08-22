@@ -49,37 +49,45 @@ export default function FieldRow({ fieldKey, data, onCopy }) {
   const [copied, setCopied] = useState(false)
   const [animatedWidth, setAnimatedWidth] = useState(0)
 
-  const config = SOURCE_CONFIG[data.source] || SOURCE_CONFIG.unknown
-  const isEmpty = !data.value
-  const hasRuleWarning = data.validation === 'outside_expected_range'
+  // Safeguard against missing or undefined data structures
+  const safeData = data || {
+    value: '',
+    source: 'unknown',
+    confidence: 0,
+    reasoning: 'Field data not populated in this analysis mode.'
+  }
+
+  const config = SOURCE_CONFIG[safeData.source] || SOURCE_CONFIG.unknown
+  const isEmpty = !safeData.value
+  const hasRuleWarning = safeData.validation === 'outside_expected_range'
 
   // Animate confidence bar from 0 to final target value on mount/update
   useEffect(() => {
     setAnimatedWidth(0)
     const timer = setTimeout(() => {
-      setAnimatedWidth(data.confidence ?? 0)
+      setAnimatedWidth(safeData.confidence ?? 0)
     }, 40)
     return () => clearTimeout(timer)
-  }, [data.confidence, data.source])
+  }, [safeData.confidence, safeData.source])
 
   const handleCopyValue = () => {
-    if (!data.value) return
-    navigator.clipboard.writeText(data.value)
+    if (!safeData.value) return
+    navigator.clipboard.writeText(safeData.value)
     setCopied(true)
-    onCopy?.(`Copied "${data.value}"`)
+    onCopy?.(`Copied "${safeData.value}"`)
     setTimeout(() => setCopied(false), 1500)
   }
 
   return (
-    <div className={`field-row${data.source === 'conflict' ? ' row-conflict' : ''}`} id={`field-row-${fieldKey}`}>
+    <div className={`field-row${safeData.source === 'conflict' ? ' row-conflict' : ''}`} id={`field-row-${fieldKey}`}>
       <span className="field-label">{FIELD_LABELS[fieldKey] || fieldKey}</span>
 
       <span
-        className={`field-value ${isEmpty ? 'empty' : 'copyable'}${data.source === 'conflict' ? ' text-conflict' : ''}`}
+        className={`field-value ${isEmpty ? 'empty' : 'copyable'}${safeData.source === 'conflict' ? ' text-conflict' : ''}`}
         onClick={handleCopyValue}
         title={!isEmpty ? 'Click to copy value' : ''}
       >
-        {copied ? '✓ Copied!' : isEmpty ? '—' : data.value}
+        {copied ? '✓ Copied!' : isEmpty ? '—' : safeData.value}
       </span>
 
       <div className="field-right">

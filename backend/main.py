@@ -145,6 +145,8 @@ def enrich_unilog_endpoint(request: UnilogEnrichRequest):
         )
         
         # Build standard record to save in DynamoDB (supporting both list and full result details views)
+        attributes = result.get("attributes", [])
+        
         db_record = {
             "id": str(uuid.uuid4()),
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -166,6 +168,41 @@ def enrich_unilog_endpoint(request: UnilogEnrichRequest):
                 "value": result["summary"]["brand_name"] or "-- Unbranded --",
                 "source": "ai_inferred",
                 "confidence": int(result["summary"].get("brand_confidence", 100))
+            },
+            "material": {
+                "value": next((a["value"] for a in attributes if a["label"] == "Material"), "Standard Grade"),
+                "source": "ai_inferred",
+                "confidence": 90
+            },
+            "size": {
+                "value": next((a["value"] for a in attributes if a["label"] in ("Size", "Primary Specification")), "—"),
+                "source": "ai_inferred",
+                "confidence": 90
+            },
+            "connection_type": {
+                "value": next((a["value"] for a in attributes if a["label"] == "Connection Type"), "—"),
+                "source": "ai_inferred",
+                "confidence": 90
+            },
+            "pressure_rating": {
+                "value": next((a["value"] for a in attributes if a["label"] == "Pressure Rating"), "—"),
+                "source": "ai_inferred",
+                "confidence": 90
+            },
+            "certifications": {
+                "value": result.get("descriptions", {}).get("standards") or result.get("validation_report", {}).get("standards") or "—",
+                "source": "ai_inferred",
+                "confidence": 90
+            },
+            "application": {
+                "value": request.dept or "—",
+                "source": "input_text",
+                "confidence": 100
+            },
+            "price_range": {
+                "value": "—",
+                "source": "unknown",
+                "confidence": 0
             },
             
             # Unilog Result Schema parameters
