@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import axios from 'axios'
+import logoImg from './assets/logo.jpg'
 import InputPanel from './components/InputPanel'
 import ResultCard from './components/ResultCard'
 import BatchResultTable from './components/BatchResultTable'
@@ -214,7 +215,7 @@ export default function App() {
           <div className="landing-bg-drift"></div>
           <div className="landing-content">
             <div className="landing-logo-container">
-              <div className="landing-logo-icon">⚡</div>
+              <img src={logoImg} className="landing-logo-img animate-logo-glow" alt="CatalogIQ Logo" />
               <h1 className="landing-logo-text">CatalogIQ</h1>
             </div>
             <p className="landing-tagline">
@@ -237,7 +238,7 @@ export default function App() {
         <nav className="top-nav-bar animate-fade-slide-in">
           <div className="top-nav-container">
             <div className="logo-mini" onClick={() => setScreen('landing')}>
-              <span className="logo-icon-mini">⚡</span>
+              <img src={logoImg} className="logo-icon-mini-img" alt="Logo" />
               <span className="logo-text-mini">CatalogIQ</span>
             </div>
             
