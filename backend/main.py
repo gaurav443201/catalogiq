@@ -298,6 +298,20 @@ def products():
         raise HTTPException(status_code=500, detail=f"Failed to fetch products: {str(e)}")
 
 
+@app.delete("/products")
+def clear_all_products():
+    """Clear all product records from DynamoDB."""
+    try:
+        from database import table
+        response = table.scan(ProjectionExpression="id")
+        items = response.get("Items", [])
+        for item in items:
+            table.delete_item(Key={"id": item["id"]})
+        return {"status": "success", "message": f"Cleared {len(items)} items"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear products: {str(e)}")
+
+
 @app.get("/products/{product_id}")
 def product_detail(product_id: str):
     item = get_product_by_id(product_id)

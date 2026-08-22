@@ -190,9 +190,14 @@ export default function App() {
   }
 
   const handleClearHistory = async () => {
-    setHistory([])
-    setTotalAnalyzed(0)
-    addToast('History cleared', 'info')
+    try {
+      await axios.delete(`${API_URL}/products`)
+      setHistory([])
+      setTotalAnalyzed(0)
+      addToast('History cleared successfully', 'info')
+    } catch {
+      addToast('Failed to clear database history', 'error')
+    }
   }
 
   return (
