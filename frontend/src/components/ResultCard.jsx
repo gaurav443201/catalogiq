@@ -24,6 +24,7 @@ const FIELD_LABELS = {
 export default function ResultCard({ result, onCopy }) {
   const [activeTab, setActiveTab] = useState('unilog_descriptions') // 'unilog_descriptions' | 'delivery_252' | 'standard_fields'
   const [isNew, setIsNew] = useState(true)
+  const [copiedStates, setCopiedStates] = useState({})
 
   if (!result) return null
 
@@ -33,9 +34,13 @@ export default function ResultCard({ result, onCopy }) {
   const summary = result.summary || {}
   const delivery = result.delivery_format_252 || {}
 
-  const handleCopyText = (text, label) => {
+  const handleCopyText = (text, key) => {
     navigator.clipboard.writeText(text)
-    onCopy?.(`Copied ${label} to clipboard!`)
+    setCopiedStates((prev) => ({ ...prev, [key]: true }))
+    setTimeout(() => {
+      setCopiedStates((prev) => ({ ...prev, [key]: false }))
+    }, 1200)
+    onCopy?.(`Copied to clipboard!`)
   }
 
   const handleExportJson = () => {
@@ -49,6 +54,12 @@ export default function ResultCard({ result, onCopy }) {
     a.click()
     URL.revokeObjectURL(url)
     onCopy?.('Downloaded JSON file!')
+  }
+
+  const getCharLimitClass = (length, min, max) => {
+    if (length < min) return 'char-under' // Red
+    if (length > max) return 'char-over'  // Amber
+    return 'char-target'                  // Green
   }
 
   return (
@@ -87,7 +98,7 @@ export default function ResultCard({ result, onCopy }) {
 
       {/* "Needs Human Review" Alert Banner */}
       {vReport.needs_human_review ? (
-        <div className="human-review-banner warning">
+        <div className="human-review-banner warning animate-fade-slide-in">
           <div className="banner-icon">⚠️</div>
           <div className="banner-text">
             <strong>Needs Human Review</strong>
@@ -100,7 +111,7 @@ export default function ResultCard({ result, onCopy }) {
           </span>
         </div>
       ) : (
-        <div className="human-review-banner success">
+        <div className="human-review-banner success animate-fade-slide-in">
           <div className="banner-icon">✓</div>
           <div className="banner-text">
             <strong>Fully Compliant with Unilog Content Standards</strong>
@@ -141,22 +152,22 @@ export default function ResultCard({ result, onCopy }) {
         <div className="descriptions-container">
           
           {/* 1. Invoice Description */}
-          <div className="desc-box invoice-box">
+          <div className="desc-box invoice-box staggered-tier-card" style={{ animationDelay: '0ms' }}>
             <div className="desc-box-header">
               <div className="desc-title-area">
                 <span className="desc-badge">🧾 Tier 1: Till Receipt & ERP</span>
                 <h4>Invoice Description (≤ 40 chars, ALL CAPS)</h4>
               </div>
               <div className="desc-meta">
-                <span className={`char-counter ${vReport.invoice_desc_len <= 40 ? 'valid' : 'invalid'}`}>
+                <span className={`char-counter ${getCharLimitClass(desc.invoice_desc?.length || 0, 10, 40)}`}>
                   {desc.invoice_desc?.length || 0} / 40 chars
                 </span>
                 <button
                   className="copy-mini-btn"
-                  onClick={() => handleCopyText(desc.invoice_desc, 'Invoice Description')}
+                  onClick={() => handleCopyText(desc.invoice_desc, 'invoice')}
                   title="Copy"
                 >
-                  📋 Copy
+                  {copiedStates['invoice'] ? 'Copied ✓' : '📋 Copy'}
                 </button>
               </div>
             </div>
@@ -167,22 +178,22 @@ export default function ResultCard({ result, onCopy }) {
           </div>
 
           {/* 2. Mobile Description */}
-          <div className="desc-box mobile-box">
+          <div className="desc-box mobile-box staggered-tier-card" style={{ animationDelay: '80ms' }}>
             <div className="desc-box-header">
               <div className="desc-title-area">
                 <span className="desc-badge">📱 Tier 2: Mobile App</span>
                 <h4>Mobile Description (60 – 80 chars)</h4>
               </div>
               <div className="desc-meta">
-                <span className={`char-counter ${(desc.mobile_desc?.length >= 60 && desc.mobile_desc?.length <= 80) ? 'valid' : 'warning'}`}>
+                <span className={`char-counter ${getCharLimitClass(desc.mobile_desc?.length || 0, 60, 80)}`}>
                   {desc.mobile_desc?.length || 0} chars (target 60-80)
                 </span>
                 <button
                   className="copy-mini-btn"
-                  onClick={() => handleCopyText(desc.mobile_desc, 'Mobile Description')}
+                  onClick={() => handleCopyText(desc.mobile_desc, 'mobile')}
                   title="Copy"
                 >
-                  📋 Copy
+                  {copiedStates['mobile'] ? 'Copied ✓' : '📋 Copy'}
                 </button>
               </div>
             </div>
@@ -193,7 +204,7 @@ export default function ResultCard({ result, onCopy }) {
           </div>
 
           {/* 3. Product Title / Short Description */}
-          <div className="desc-box title-box">
+          <div className="desc-box title-box staggered-tier-card" style={{ animationDelay: '160ms' }}>
             <div className="desc-box-header">
               <div className="desc-title-area">
                 <span className="desc-badge">🏷️ Tier 3: Search Engine & SRP</span>
@@ -201,10 +212,10 @@ export default function ResultCard({ result, onCopy }) {
               </div>
               <button
                 className="copy-mini-btn"
-                onClick={() => handleCopyText(desc.short_desc, 'Product Title')}
+                onClick={() => handleCopyText(desc.short_desc, 'title')}
                 title="Copy"
               >
-                📋 Copy
+                {copiedStates['title'] ? 'Copied ✓' : '📋 Copy'}
               </button>
             </div>
             <div className="desc-content-bubble">
@@ -214,7 +225,7 @@ export default function ResultCard({ result, onCopy }) {
           </div>
 
           {/* 4. Long Description */}
-          <div className="desc-box long-box">
+          <div className="desc-box long-box staggered-tier-card" style={{ animationDelay: '240ms' }}>
             <div className="desc-box-header">
               <div className="desc-title-area">
                 <span className="desc-badge">📖 Tier 4: Product Detail Page (PDP)</span>
@@ -222,10 +233,10 @@ export default function ResultCard({ result, onCopy }) {
               </div>
               <button
                 className="copy-mini-btn"
-                onClick={() => handleCopyText(desc.long_desc, 'Long Description')}
+                onClick={() => handleCopyText(desc.long_desc, 'long')}
                 title="Copy"
               >
-                📋 Copy
+                {copiedStates['long'] ? 'Copied ✓' : '📋 Copy'}
               </button>
             </div>
             <div className="desc-content-bubble">
@@ -235,7 +246,7 @@ export default function ResultCard({ result, onCopy }) {
           </div>
 
           {/* 5. Retail / Marketing Description & Features */}
-          <div className="desc-box marketing-box">
+          <div className="desc-box marketing-box staggered-tier-card" style={{ animationDelay: '320ms' }}>
             <div className="desc-box-header">
               <div className="desc-title-area">
                 <span className="desc-badge">🎯 Tier 5: Marketing & Digital Features</span>

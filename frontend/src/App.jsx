@@ -15,6 +15,9 @@ const API_URL =
 
 export default function App() {
   const resultRef = useRef(null)
+  const [screen, setScreen] = useState('landing') // 'landing' | 'input' | 'result'
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [isHistoryItem, setIsHistoryItem] = useState(false)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [batchResult, setBatchResult] = useState(null)
@@ -53,10 +56,12 @@ export default function App() {
     setError(null)
     setResult(null)
     setBatchResult(null)
+    setIsHistoryItem(false)
 
     try {
       const response = await axios.post(`${API_URL}/enrich-unilog`, formData)
       setResult(response.data)
+      setScreen('result')
       addToast('Product successfully enriched into 5 descriptions & 252 delivery columns!')
       setTimeout(() => {
         resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -78,6 +83,7 @@ export default function App() {
     setError(null)
     setResult(null)
     setBatchResult(null)
+    setIsHistoryItem(false)
 
     try {
       const response = await axios.post(`${API_URL}/generate`, {
@@ -85,6 +91,7 @@ export default function App() {
         category,
       })
       setResult(response.data)
+      setScreen('result')
       addToast('Product analyzed and saved successfully!')
       fetchHistory()
       setTimeout(() => {
@@ -107,6 +114,7 @@ export default function App() {
     setError(null)
     setResult(null)
     setBatchResult(null)
+    setIsHistoryItem(false)
 
     try {
       const response = await axios.post(`${API_URL}/generate-batch`, {
@@ -114,6 +122,7 @@ export default function App() {
         category,
       })
       setBatchResult(response.data)
+      setScreen('result')
       addToast(`Successfully processed batch of ${response.data.count} products!`)
       fetchHistory()
     } catch (err) {
@@ -133,6 +142,7 @@ export default function App() {
     setError(null)
     setResult(null)
     setBatchResult(null)
+    setIsHistoryItem(false)
 
     try {
       const response = await axios.post(`${API_URL}/generate-cross-source`, {
@@ -141,6 +151,7 @@ export default function App() {
         category,
       })
       setResult(response.data)
+      setScreen('result')
       addToast('Cross-source comparison completed!')
       fetchHistory()
       setTimeout(() => {
@@ -161,6 +172,8 @@ export default function App() {
     setResult(product)
     setBatchResult(null)
     setError(null)
+    setIsHistoryItem(true)
+    setScreen('result')
     addToast('Loaded from history', 'info')
     setTimeout(() => {
       resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -171,6 +184,8 @@ export default function App() {
     setResult(null)
     setBatchResult(null)
     setError(null)
+    setIsHistoryItem(false)
+    setScreen('input')
   }
 
   const handleClearHistory = async () => {
@@ -180,7 +195,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app-container screen-${screen}`}>
       {/* Toast stack */}
       <div className="toast-stack">
         {toasts.map((t) => (
@@ -193,80 +208,137 @@ export default function App() {
         ))}
       </div>
 
-      {/* Header */}
-      <header className="header">
-        <div className="logo">
-          <div className="logo-icon">⚡</div>
-          <span className="logo-text">CatalogIQ</span>
-        </div>
-        <p className="header-subtitle">
-          Enterprise Product Content Enrichment Engine for Industrial Distributors — Built to Unilog Master Content & Delivery Standards.
-        </p>
-
-        {totalAnalyzed > 0 && (
-          <div className="header-stats">
-            <span className="header-stat">
-              <span className="header-stat-num">{totalAnalyzed}</span> products analyzed
-            </span>
-          </div>
-        )}
-      </header>
-
-      {/* Input Panel with Unilog Pipeline, Single, Batch, Cross-Source, and File Drop */}
-      <InputPanel
-        onGenerate={handleGenerate}
-        onGenerateBatch={handleGenerateBatch}
-        onGenerateCrossSource={handleGenerateCrossSource}
-        onEnrichUnilog={handleEnrichUnilog}
-        loading={loading}
-        apiUrl={API_URL}
-        onOpenBenchmark={() => setShowBenchmarkModal(true)}
-      />
-
-      {/* Error Banner */}
-      {error && (
-        <div className="error-banner" id="error-banner">
-          ⚠️ {error}
-        </div>
-      )}
-
-      {/* Result Card (5-Tier Descriptions + 252 Delivery Schema + 10-Point Technical Specs) */}
-      {result && (
-        <div ref={resultRef}>
-          <div className="result-toolbar">
-            <button
-              id="new-analysis-btn"
-              className="new-analysis-btn"
-              onClick={handleClear}
-            >
-              ＋ New Item Analysis
+      {/* ─── SCREEN 1: LANDING / COVER PAGE ────────────────────────────── */}
+      {screen === 'landing' && (
+        <div className="landing-cover-screen">
+          <div className="landing-bg-drift"></div>
+          <div className="landing-content">
+            <div className="landing-logo-container">
+              <div className="landing-logo-icon">⚡</div>
+              <h1 className="landing-logo-text">CatalogIQ</h1>
+            </div>
+            <p className="landing-tagline">
+              Enterprise Product Content Enrichment Engine for Industrial Distributors — Built to Unilog Master Content & Delivery Standards.
+            </p>
+            {totalAnalyzed > 0 && (
+              <div className="landing-stats">
+                <span className="landing-stat-num">{totalAnalyzed}</span> products analyzed & standardized
+              </div>
+            )}
+            <button className="landing-enter-btn" onClick={() => setScreen('input')}>
+              🚀 Launch Pipeline
             </button>
           </div>
-          <ResultCard result={result} onCopy={(msg) => addToast(msg, 'info')} />
         </div>
       )}
 
-      {/* Batch Matrix Table Result */}
-      {batchResult && (
-        <BatchResultTable
-          batchData={batchResult}
-          onSelectProduct={(p) => {
-            setResult(p)
-            window.scrollTo({ top: 400, behavior: 'smooth' })
-          }}
-          onClearBatch={handleClear}
-          onCopy={(msg) => addToast(msg, 'info')}
-        />
+      {/* ─── PERSISTENT TOP NAVIGATION BAR (Screen 2 & 3) ────────────────── */}
+      {screen !== 'landing' && (
+        <nav className="top-nav-bar animate-fade-slide-in">
+          <div className="logo-mini" onClick={() => setScreen('landing')}>
+            <span className="logo-icon-mini">⚡</span>
+            <span className="logo-text-mini">CatalogIQ</span>
+          </div>
+          
+          <div className="top-nav-actions">
+            <button className="nav-btn btn-history" onClick={() => setIsHistoryOpen(true)}>
+              🕒 History Drawer ({history.length})
+            </button>
+            {screen === 'result' && (
+              <button className="nav-btn btn-new-analysis" onClick={handleClear}>
+                ＋ New Item Analysis
+              </button>
+            )}
+          </div>
+        </nav>
       )}
 
-      {/* History */}
-      {history.length > 0 && (
-        <HistoryPanel
-          products={history}
-          onSelect={handleHistorySelect}
-          onClearAll={handleClearHistory}
-        />
+      {/* Main content area */}
+      {screen !== 'landing' && (
+        <main className="app-main-content">
+          {/* Error Banner */}
+          {error && (
+            <div className="error-banner" id="error-banner">
+              ⚠️ {error}
+            </div>
+          )}
+
+          {/* ─── SCREEN 2: PIPELINE INPUT INTERFACE ──────────────────────── */}
+          {screen === 'input' && (
+            <div className="input-screen-wrapper">
+              <div className="screen-header">
+                <h2>Product Data Ingestion Workbench</h2>
+                <p className="screen-subtitle">Convert unformatted distributor files, nameplate images, or specification sheets into compliant Unilog data structures.</p>
+              </div>
+              <InputPanel
+                onGenerate={handleGenerate}
+                onGenerateBatch={handleGenerateBatch}
+                onGenerateCrossSource={handleGenerateCrossSource}
+                onEnrichUnilog={handleEnrichUnilog}
+                loading={loading}
+                apiUrl={API_URL}
+                onOpenBenchmark={() => setShowBenchmarkModal(true)}
+              />
+            </div>
+          )}
+
+          {/* ─── SCREEN 3: ENRICHED PRODUCT RECORD (RESULT) ───────────────── */}
+          {screen === 'result' && (
+            <div className="result-screen-wrapper" ref={resultRef}>
+              {isHistoryItem && (
+                <div className="history-loaded-tag-container animate-fade-slide-in">
+                  <span className="history-loaded-tag">📋 Loaded from history</span>
+                </div>
+              )}
+
+              {/* Single / Cross-Source Result */}
+              {result && (
+                <ResultCard result={result} onCopy={(msg) => addToast(msg, 'info')} />
+              )}
+
+              {/* Batch Matrix Table Result */}
+              {batchResult && (
+                <BatchResultTable
+                  batchData={batchResult}
+                  onSelectProduct={(p) => {
+                    setResult(p)
+                    window.scrollTo({ top: 400, behavior: 'smooth' })
+                  }}
+                  onClearBatch={handleClear}
+                  onCopy={(msg) => addToast(msg, 'info')}
+                />
+              )}
+            </div>
+          )}
+        </main>
       )}
+
+      {/* ─── SLIDE-IN HISTORY DRAWER (Applies across Screens 2 & 3) ──────── */}
+      <div className={`drawer-backdrop ${isHistoryOpen ? 'open' : ''}`} onClick={() => setIsHistoryOpen(false)} />
+      <div className={`drawer-container ${isHistoryOpen ? 'open' : ''}`}>
+        <div className="drawer-header">
+          <h3>🕒 Saved History</h3>
+          <button className="drawer-close-btn" onClick={() => setIsHistoryOpen(false)}>×</button>
+        </div>
+        <div className="drawer-body">
+          {history.length > 0 ? (
+            <HistoryPanel
+              products={history}
+              onSelect={(p) => {
+                handleHistorySelect(p)
+                setIsHistoryOpen(false)
+              }}
+              onClearAll={handleClearHistory}
+            />
+          ) : (
+            <div className="drawer-empty-state">
+              <span className="empty-icon">📁</span>
+              <p>No history items found yet.</p>
+              <p className="empty-caption">Enrich or analyze a product to populate the history panel.</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Accuracy Benchmark Evaluation Modal */}
       <BenchmarkEvaluationModal
@@ -275,5 +347,5 @@ export default function App() {
         apiUrl={API_URL}
       />
     </div>
-  )
+  );
 }
