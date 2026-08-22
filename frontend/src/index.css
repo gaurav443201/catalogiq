@@ -2708,7 +2708,7 @@ body::before {
 }
 
 .landing-tagline {
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 19px;
   line-height: 1.7;
   max-width: 680px;
@@ -2716,6 +2716,7 @@ body::before {
   transform: translateY(12px);
   animation: taglineEntrance 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   animation-delay: 180ms;
+  font-weight: 500;
 }
 
 @keyframes taglineEntrance {
@@ -2766,9 +2767,6 @@ body::before {
 
 /* ─── PERSISTENT TOP NAVIGATION BAR ────────────────────────────────────────── */
 .top-nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   border-bottom: 1px solid var(--border);
   padding: 14px 24px;
   background: rgba(7, 7, 17, 0.85);
@@ -2777,6 +2775,16 @@ body::before {
   top: 0;
   z-index: 100;
   margin-bottom: 24px;
+  width: 100%;
+}
+
+.top-nav-container {
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .logo-mini {
@@ -2848,8 +2856,18 @@ body::before {
 }
 
 /* ─── Screen Layout Wrappers ─────────────────────────────────────────────── */
+.app-main-content {
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 24px 80px;
+  display: flex;
+  flex-direction: column;
+}
+
 .input-screen-wrapper,
 .result-screen-wrapper {
+  width: 100%;
   animation: screenSlideEntrance 350ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 

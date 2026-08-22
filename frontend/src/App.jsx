@@ -235,20 +235,22 @@ export default function App() {
       {/* ─── PERSISTENT TOP NAVIGATION BAR (Screen 2 & 3) ────────────────── */}
       {screen !== 'landing' && (
         <nav className="top-nav-bar animate-fade-slide-in">
-          <div className="logo-mini" onClick={() => setScreen('landing')}>
-            <span className="logo-icon-mini">⚡</span>
-            <span className="logo-text-mini">CatalogIQ</span>
-          </div>
-          
-          <div className="top-nav-actions">
-            <button className="nav-btn btn-history" onClick={() => setIsHistoryOpen(true)}>
-              🕒 History Drawer ({history.length})
-            </button>
-            {screen === 'result' && (
-              <button className="nav-btn btn-new-analysis" onClick={handleClear}>
-                ＋ New Item Analysis
+          <div className="top-nav-container">
+            <div className="logo-mini" onClick={() => setScreen('landing')}>
+              <span className="logo-icon-mini">⚡</span>
+              <span className="logo-text-mini">CatalogIQ</span>
+            </div>
+            
+            <div className="top-nav-actions">
+              <button className="nav-btn btn-history" onClick={() => setIsHistoryOpen(true)}>
+                🕒 History Drawer ({history.length})
               </button>
-            )}
+              {screen === 'result' && (
+                <button className="nav-btn btn-new-analysis" onClick={handleClear}>
+                  ＋ New Item Analysis
+                </button>
+              )}
+            </div>
           </div>
         </nav>
       )}
