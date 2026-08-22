@@ -371,7 +371,8 @@ body::before {
 
 .textarea-wrapper { position: relative; }
 
-.product-textarea {
+.product-textarea,
+.textarea {
   width: 100%;
   min-height: 140px;
   background: rgba(255,255,255,0.04);
@@ -390,25 +391,32 @@ body::before {
   scrollbar-color: rgba(99,102,241,0.3) transparent;
 }
 
-.product-textarea::-webkit-scrollbar {
+.product-textarea::-webkit-scrollbar,
+.textarea::-webkit-scrollbar {
   width: 4px;
 }
 
-.product-textarea::-webkit-scrollbar-track {
+.product-textarea::-webkit-scrollbar-track,
+.textarea::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.product-textarea::-webkit-scrollbar-thumb {
+.product-textarea::-webkit-scrollbar-thumb,
+.textarea::-webkit-scrollbar-thumb {
   background: rgba(99,102,241,0.3);
   border-radius: 4px;
 }
 
-.product-textarea::-webkit-scrollbar-thumb:hover {
+.product-textarea::-webkit-scrollbar-thumb:hover,
+.textarea::-webkit-scrollbar-thumb:hover {
   background: rgba(99,102,241,0.6);
 }
 
-.product-textarea::placeholder { color: var(--text-muted); }
-.product-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.15); }
+.product-textarea::placeholder,
+.textarea::placeholder { color: var(--text-muted); }
+
+.product-textarea:focus,
+.textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15); }
 
 .char-count {
   position: absolute;
