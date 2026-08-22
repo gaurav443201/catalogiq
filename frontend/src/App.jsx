@@ -203,19 +203,13 @@ export default function App() {
           Enterprise Product Content Enrichment Engine for Industrial Distributors — Built to Unilog Master Content & Delivery Standards.
         </p>
 
-        <div className="header-stats">
-          <button
-            className="btn btn-outline-light btn-sm"
-            onClick={() => setShowBenchmarkModal(true)}
-          >
-            🏆 Evaluator Accuracy Scorecard
-          </button>
-          {totalAnalyzed > 0 && (
+        {totalAnalyzed > 0 && (
+          <div className="header-stats">
             <span className="header-stat">
               <span className="header-stat-num">{totalAnalyzed}</span> products analyzed
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </header>
 
       {/* Input Panel with Unilog Pipeline, Single, Batch, Cross-Source, and File Drop */}
