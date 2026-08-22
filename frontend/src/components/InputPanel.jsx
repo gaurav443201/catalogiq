@@ -149,16 +149,7 @@ export default function InputPanel({
   return (
     <div className="card input-panel" id="input-panel">
       
-      {/* Top Banner / Evaluator Live Scoring Button */}
-      <div className="evaluator-cta-bar">
-        <div>
-          <span className="live-pulse"></span>
-          <strong>Unilog Evaluator Benchmark Suite Active</strong>
-        </div>
-        <button className="btn btn-benchmark-trigger" onClick={onOpenBenchmark}>
-          🏆 View Evaluator Benchmark Scorecard
-        </button>
-      </div>
+
 
       {/* Tabs */}
       <div className="tab-nav">
