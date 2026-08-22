@@ -16,10 +16,23 @@ dynamodb = boto3.resource(
 table = dynamodb.Table(os.getenv("DYNAMODB_TABLE", "catalogiq-products"))
 
 
+from decimal import Decimal
+
+def convert_floats_to_decimals(obj):
+    """Recursively convert float types to Decimal for DynamoDB storage."""
+    if isinstance(obj, float):
+        return Decimal(str(obj))
+    elif isinstance(obj, dict):
+        return {k: convert_floats_to_decimals(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_floats_to_decimals(v) for v in obj]
+    return obj
+
+
 def save_product(record: dict):
-    """Save a product record to DynamoDB."""
-    # DynamoDB requires Decimal for floats; confidence is int so we're fine
-    table.put_item(Item=record)
+    """Save a product record to DynamoDB, handling float conversions."""
+    clean_record = convert_floats_to_decimals(record)
+    table.put_item(Item=clean_record)
 
 
 def get_all_products():
