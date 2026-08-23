@@ -43,7 +43,7 @@ async function extractImage(file, category, apiUrl) {
   return data.extracted_text
 }
 
-export default function FileDropZone({ onExtracted, category, apiUrl }) {
+export default function FileDropZone({ onTextExtracted, onExtracted, category, apiUrl }) {
   const [dragging, setDragging] = useState(false)
   const [status, setStatus] = useState('idle') // idle | parsing | done | error
   const [fileName, setFileName] = useState('')
@@ -73,12 +73,16 @@ export default function FileDropZone({ onExtracted, category, apiUrl }) {
 
       if (!text) throw new Error('No text could be extracted from this file.')
       setStatus('done')
-      onExtracted(text)
+      if (onTextExtracted) {
+        onTextExtracted(text)
+      } else if (onExtracted) {
+        onExtracted(text)
+      }
     } catch (e) {
       setStatus('error')
       setErrorMsg(e.message || 'Extraction failed')
     }
-  }, [category, apiUrl, onExtracted])
+  }, [category, apiUrl, onTextExtracted, onExtracted])
 
   const onDrop = useCallback((e) => {
     e.preventDefault()
