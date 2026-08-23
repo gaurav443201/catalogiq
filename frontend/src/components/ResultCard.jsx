@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import FieldRow from './FieldRow'
 import UnilogDeliveryTable from './UnilogDeliveryTable'
 
@@ -25,6 +25,13 @@ export default function ResultCard({ result, onCopy }) {
   const [activeTab, setActiveTab] = useState('unilog_descriptions') // 'unilog_descriptions' | 'delivery_252' | 'standard_fields'
   const [isNew, setIsNew] = useState(true)
   const [copiedStates, setCopiedStates] = useState({})
+
+  useEffect(() => {
+    if (result) {
+      const isUnilog = Boolean(result.descriptions || result.delivery_format_252)
+      setActiveTab(isUnilog ? 'unilog_descriptions' : 'standard_fields')
+    }
+  }, [result])
 
   if (!result) return null
 
@@ -141,56 +148,71 @@ export default function ResultCard({ result, onCopy }) {
         </div>
       </div>
 
-      {/* "Needs Human Review" Alert Banner */}
-      {vReport.needs_human_review ? (
-        <div className="human-review-banner warning animate-fade-slide-in">
-          <div className="banner-icon">⚠️</div>
-          <div className="banner-text">
-            <strong>Needs Human Review</strong>
-            <p>
-              Rule discrepancies detected: {vReport.violations?.concat(vReport.warnings || []).join(' • ') || 'Please verify technical attributes.'}
-            </p>
+      {/* Compliance Banners */}
+      {isUnilogFormat ? (
+        vReport.needs_human_review ? (
+          <div className="human-review-banner warning animate-fade-slide-in">
+            <div className="banner-icon">⚠️</div>
+            <div className="banner-text">
+              <strong>Needs Human Review</strong>
+              <p>
+                Rule discrepancies detected: {vReport.violations?.concat(vReport.warnings || []).join(' • ') || 'Please verify technical attributes.'}
+              </p>
+            </div>
+            <span className="compliance-pill score-warning">
+              Score: {vReport.compliance_score || 85}%
+            </span>
           </div>
-          <span className="compliance-pill score-warning">
-            Score: {vReport.compliance_score || 85}%
-          </span>
-        </div>
+        ) : (
+          <div className="human-review-banner success animate-fade-slide-in">
+            <div className="banner-icon">✓</div>
+            <div className="banner-text">
+              <strong>Fully Compliant with Unilog Content Standards</strong>
+              <p>All 5 description formulas, character limits, fractions, and approved UOM abbreviations verified.</p>
+            </div>
+            <span className="compliance-pill score-success">
+              100% Validated
+            </span>
+          </div>
+        )
       ) : (
         <div className="human-review-banner success animate-fade-slide-in">
           <div className="banner-icon">✓</div>
           <div className="banner-text">
-            <strong>Fully Compliant with Unilog Content Standards</strong>
-            <p>All 5 description formulas, character limits, fractions, and approved UOM abbreviations verified.</p>
+            <strong>10-Point Technical Schema Extracted</strong>
+            <p>All attributes successfully structured and validated against engineering norms.</p>
           </div>
           <span className="compliance-pill score-success">
-            100% Validated
+            Standard Ingestion
           </span>
         </div>
       )}
 
       {/* Navigation Tabs */}
-      <div className="card-tabs">
-        <button
-          className={`tab-btn ${activeTab === 'unilog_descriptions' ? 'active' : ''}`}
-          onClick={() => setActiveTab('unilog_descriptions')}
-        >
-          📝 5-Tier Descriptions & Bullets
-        </button>
-        <button
-          className={`tab-btn ${activeTab === 'delivery_252' ? 'active' : ''}`}
-          onClick={() => setActiveTab('delivery_252')}
-        >
-          📊 252 Delivery Columns
-        </button>
-        {result.product_name && (
+      {isUnilogFormat && (
+        <div className="card-tabs">
           <button
-            className={`tab-btn ${activeTab === 'standard_fields' ? 'active' : ''}`}
-            onClick={() => setActiveTab('standard_fields')}
+            className={`tab-btn ${activeTab === 'unilog_descriptions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('unilog_descriptions')}
           >
-            🔍 10-Point Technical Schema
+            📝 5-Tier Descriptions & Bullets
           </button>
-        )}
-      </div>
+          <button
+            className={`tab-btn ${activeTab === 'delivery_252' ? 'active' : ''}`}
+            onClick={() => setActiveTab('delivery_252')}
+          >
+            📊 252 Delivery Columns
+          </button>
+          {result.product_name && (
+            <button
+              className={`tab-btn ${activeTab === 'standard_fields' ? 'active' : ''}`}
+              onClick={() => setActiveTab('standard_fields')}
+            >
+              🔍 10-Point Technical Schema
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Tab 1: 5-Tier Descriptions */}
       {activeTab === 'unilog_descriptions' && (
