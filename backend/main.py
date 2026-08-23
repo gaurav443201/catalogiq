@@ -144,6 +144,21 @@ def enrich_unilog_endpoint(request: UnilogEnrichRequest):
             fine=request.fine or ""
         )
         
+        # Run real-time LLM extraction to get highly accurate 10 standard fields
+        extracted = {}
+        try:
+            raw_desc = f"""Mfg Part Num: {request.mfg_part_num or ''}
+Part Desc: {request.part_desc}
+Manufacturer: {request.part_manuf or ''}
+Brand: {request.e1_brand or request.unilog_brand or request.dib_brand or ''}
+Category: {request.item_class or ''}"""
+            extracted = extract_product_data(
+                raw_text=raw_desc,
+                category=request.item_class or "Built-In Dishwashers"
+            )
+        except Exception as err:
+            print(f"Error during technical schema LLM extraction: {err}")
+
         # Build standard record to save in DynamoDB (supporting both list and full result details views)
         attributes = result.get("attributes", [])
         
@@ -153,53 +168,53 @@ def enrich_unilog_endpoint(request: UnilogEnrichRequest):
             "input_category": request.item_class or "Unilog Enrichment",
             "raw_input": request.part_desc,
             
-            # Standard dashboard listing parameters
-            "product_name": {
+            # Standard dashboard listing parameters mapped from LLM extraction with rules-based fallback
+            "product_name": extracted.get("product_name") or {
                 "value": result["descriptions"]["short_desc"] or request.mfg_part_num or "Unnamed Product",
                 "source": "input_text",
                 "confidence": 100
             },
-            "category": {
+            "category": extracted.get("category") or {
                 "value": result["summary"]["classpath"] or request.item_class or "Unilog Item",
                 "source": "ai_inferred",
                 "confidence": int(result["summary"].get("brand_confidence", 100))
             },
-            "brand": {
+            "brand": extracted.get("brand") or {
                 "value": result["summary"]["brand_name"] or "-- Unbranded --",
                 "source": "ai_inferred",
                 "confidence": int(result["summary"].get("brand_confidence", 100))
             },
-            "material": {
+            "material": extracted.get("material") or {
                 "value": next((a["value"] for a in attributes if a["label"] == "Material"), "Standard Grade"),
                 "source": "ai_inferred",
                 "confidence": 90
             },
-            "size": {
+            "size": extracted.get("size") or {
                 "value": next((a["value"] for a in attributes if a["label"] in ("Size", "Primary Specification")), "—"),
                 "source": "ai_inferred",
                 "confidence": 90
             },
-            "connection_type": {
+            "connection_type": extracted.get("connection_type") or {
                 "value": next((a["value"] for a in attributes if a["label"] == "Connection Type"), "—"),
                 "source": "ai_inferred",
                 "confidence": 90
             },
-            "pressure_rating": {
+            "pressure_rating": extracted.get("pressure_rating") or {
                 "value": next((a["value"] for a in attributes if a["label"] == "Pressure Rating"), "—"),
                 "source": "ai_inferred",
                 "confidence": 90
             },
-            "certifications": {
-                "value": result.get("descriptions", {}).get("standards") or result.get("validation_report", {}).get("standards") or "—",
+            "certifications": extracted.get("certifications") or {
+                "value": result["summary"].get("standards") or "—",
                 "source": "ai_inferred",
                 "confidence": 90
             },
-            "application": {
+            "application": extracted.get("application") or {
                 "value": request.dept or "—",
                 "source": "input_text",
                 "confidence": 100
             },
-            "price_range": {
+            "price_range": extracted.get("price_range") or {
                 "value": "—",
                 "source": "unknown",
                 "confidence": 0

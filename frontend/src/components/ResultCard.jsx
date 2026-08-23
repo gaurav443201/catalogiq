@@ -56,6 +56,48 @@ export default function ResultCard({ result, onCopy }) {
     onCopy?.('Downloaded JSON file!')
   }
 
+  const handleExportCsv = () => {
+    let headers = []
+    let values = []
+    let filename = 'product-export'
+
+    if (isUnilogFormat && result.delivery_format_252) {
+      // Export Unilog 252 delivery columns
+      headers = Object.keys(result.delivery_format_252)
+      values = Object.values(result.delivery_format_252).map(val => {
+        const strVal = String(val ?? '')
+        if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
+          return `"${strVal.replace(/"/g, '""')}"`
+        }
+        return strVal
+      })
+      filename = `unilog-delivery-${result.summary?.mfg_part_num || result.id || 'product'}`
+    } else {
+      // Export 10-Point Technical Schema fields
+      FIELD_KEYS.forEach(key => {
+        headers.push(FIELD_LABELS[key] || key)
+        const val = result[key]?.value || ''
+        const strVal = String(val)
+        if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
+          values.push(`"${strVal.replace(/"/g, '""')}"`)
+        } else {
+          values.push(strVal)
+        }
+      })
+      filename = `catalogiq-schema-${result.id || 'product'}`
+    }
+
+    const csvContent = `${headers.join(',')}\n${values.join(',')}`
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${filename}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    onCopy?.('Downloaded CSV file!')
+  }
+
   const getCharLimitClass = (length, min, max) => {
     if (length < min) return 'char-under' // Red
     if (length > max) return 'char-over'  // Amber
@@ -89,9 +131,12 @@ export default function ResultCard({ result, onCopy }) {
         </div>
 
         {/* Action Buttons */}
-        <div className="result-header-actions">
+        <div className="result-header-actions" style={{ display: 'flex', gap: '8px' }}>
           <button className="btn btn-secondary btn-sm" onClick={handleExportJson} title="Export full JSON structure">
             💾 Export JSON
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={handleExportCsv} title="Export CSV spreadsheet">
+            📊 Export CSV
           </button>
         </div>
       </div>

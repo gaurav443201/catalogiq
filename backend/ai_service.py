@@ -73,6 +73,18 @@ Fields to extract (return exactly these 10 keys):
 product_name, category, brand, material, size, connection_type,
 pressure_rating, certifications, application, price_range
 
+EXTRACTION GUIDELINES FOR EACH FIELD:
+- **product_name**: Short, standardized commercial title including brand, series, model, and item type.
+- **category**: The general classification.
+- **brand**: Canonical trademarked manufacturer brand name.
+- **material**: Primary body or component material (e.g. Stainless Steel 316, Brass, PVC).
+- **size**: Primary outer dimensions (e.g. 24 in W x 24-1/4 in D, 2 in, 5 in).
+- **connection_type**: For plumbing/valves/fittings, look for terms like NPT, Threaded, Flanged, Welded, Socket Weld. For appliances/electrical, specify mounting or wiring connection type (e.g. Hardwired, Corded Plug, Leg Mounted).
+- **pressure_rating**: For valves/pipes, look for PSI/WOG/ANSI ratings (e.g. 150#, Class 150, 300#, 1000 WOG). For motors/household appliances, set to "N/A" with 0 confidence / "unknown" source.
+- **certifications**: Extract all listed regulatory standard codes or safety approvals (e.g. UL Listed, cUL, ENERGY STAR, NSF, ANSI, ISO 9001).
+- **application**: Infer realistic industrial/commercial/residential environments (e.g. Residential Kitchen, Plumbing / Water Supply, Industrial Metalwork).
+- **price_range**: Provide a realistic market price range estimate (e.g. $800 - $1,200 for premium home dishwashers, $150 - $400 for industrial valves) based on materials and manufacturer brand tier.
+
 For EACH field return a JSON object with:
 {{ "value": string, "source": string, "confidence": integer, "reasoning": string }}
 
@@ -414,6 +426,7 @@ def enrich_unilog_item(
             "brand_confidence": brand_conf,
             "needs_human_review": validation_report["needs_human_review"],
             "compliance_score": validation_report["compliance_score"],
+            "standards": standards,
         },
         "descriptions": {
             "invoice_desc": inv_desc,
